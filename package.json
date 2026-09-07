@@ -1,1 +1,12 @@
-
+{
+  "name": "custom-youtube-client",
+  "version": "1.0.0",
+  "description": "YouTube Clone powered by Cloudflare Workers and youtube-nocookie",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
