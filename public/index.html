@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="https://www.youtube.com/s/desktop/f5209772/img/favicon.ico">
+</head>
+<body>
+  <!-- ヘッダー（ナビゲーションバー） -->
+  <header id="yt-header">
+    <div class="header-left">
+      <button id="menu-btn" class="icon-btn" title="ガイド">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+      </button>
+      <a href="/" id="logo-link" class="logo">
+        <svg class="yt-icon" viewBox="0 0 90 20" height="20">
+          <g>
+            <path fill="#FF0000" d="M27.973,3.104c-1.164-0.435-9.378-0.435-9.378-0.435s-8.214,0-9.378,0.435C8.053,3.539,7.185,4.407,6.75,5.571 C6.315,6.735,6.315,9.15,6.315,9.15s0,2.415,0.435,3.579c0.435,1.164,1.303,2.032,2.467,2.467c1.164,0.435,9.378,0.435,9.378,0.435 s8.214,0,9.378-0.435c1.164-0.435,2.032-1.303,2.467-2.467c0.435-1.164,0.435-3.579,0.435-3.579s0-2.415-0.435-3.579 C30.005,4.407,29.137,3.539,27.973,3.104z"/>
+            <polygon fill="#FFFFFF" points="16.5,12.5 22.5,9.15 16.5,5.8"/>
+            <text x="35" y="16" fill="#FFFFFF" font-family="sans-serif" font-weight="bold" font-size="16">YouTube</text>
+          </g>
+        </svg>
+      </a>
+    </div>
+
+    <!-- 検索バー -->
+    <div class="header-center">
+      <form id="search-form">
+        <input type="text" id="search-input" placeholder="検索" autocomplete="off">
+        <button type="submit" id="search-btn" title="検索">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        </button>
+      </form>
+    </div>
+
+    <div class="header-right">
+      <div class="user-avatar" title="設定・ユーザー">
+        <img src="https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png" alt="Avatar">
+      </div>
+    </div>
+  </header>
+
+  <!-- メインレイアウト -->
+  <div id="layout-container">
+    <!-- サイドバー -->
+    <aside id="yt-sidebar">
+      <nav>
+        <a href="/" class="nav-item active" id="nav-home">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          <span>ホーム</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="app.search('音楽')">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+          <span>音楽</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="app.search('ゲーム')">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+          <span>ゲーム</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="app.search('ニュース')">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z"/></svg>
+          <span>ニュース</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- メインコンテンツ画面 (SPA で切り替え) -->
+    <main id="yt-content">
+      <!-- 読み込み中インジケータ -->
+      <div id="loader" class="loader-container" style="display:none;">
+        <div class="spinner"></div>
+      </div>
+
+      <!-- 1. ホーム / 検索結果一覧ビュー -->
+      <div id="view-feed" class="view">
+        <div id="video-grid" class="video-grid"></div>
+      </div>
+
+      <!-- 2. 動画再生 (Watch) ビュー -->
+      <div id="view-watch" class="view" style="display:none;">
+        <div class="watch-layout">
+          <!-- 左側: プレイヤー + コメント -->
+          <div class="watch-primary">
+            <!-- youtube-nocookie 埋め込みプレイヤー -->
+            <div class="player-wrapper">
+              <iframe id="nocookie-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            </div>
+
+            <!-- 動画タイトル・メタ情報 -->
+            <h1 id="watch-title" class="watch-title"></h1>
+            <div class="watch-metadata">
+              <div class="channel-info">
+                <img id="watch-channel-avatar" class="channel-avatar clickable" src="" alt="">
+                <div>
+                  <div id="watch-channel-name" class="channel-name clickable"></div>
+                  <div id="watch-channel-subs" class="channel-subs"></div>
+                </div>
+                <button class="sub-button">チャンネル登録</button>
+              </div>
+            </div>
+
+            <!-- 概要欄 -->
+            <div id="watch-description-box" class="description-box">
+              <div class="description-stats">
+                <span id="watch-views"></span>
+                <span id="watch-date"></span>
+              </div>
+              <div id="watch-description" class="description-text"></div>
+            </div>
+
+            <!-- コメントセクション -->
+            <div class="comments-section">
+              <h2 id="comments-count-title" class="comments-header">コメント</h2>
+              <div id="comments-list" class="comments-list"></div>
+            </div>
+          </div>
+
+          <!-- 右側: 関連動画サイドバー -->
+          <div class="watch-secondary">
+            <h3 class="related-header">次の動画</h3>
+            <div id="related-videos-list" class="related-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. チャンネル ビュー -->
+      <div id="view-channel" class="view" style="display:none;">
+        <div id="channel-banner" class="channel-banner"></div>
+        <div class="channel-header-box">
+          <img id="channel-page-avatar" class="channel-large-avatar" src="" alt="">
+          <div class="channel-header-details">
+            <h1 id="channel-page-name"></h1>
+            <p id="channel-page-subs"></p>
+            <p id="channel-page-desc" class="channel-desc"></p>
+          </div>
+        </div>
+        <div class="channel-tabs">
+          <span class="active">動画一覧</span>
+        </div>
+        <div id="channel-video-grid" class="video-grid"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
