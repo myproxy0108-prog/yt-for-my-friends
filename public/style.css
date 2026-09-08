@@ -11,7 +11,9 @@ body {
   overflow-x: hidden;
 }
 
-/* ヘッダー */
+/* ==========================================
+   ヘッダー (文字削れ防止 120px 幅)
+   ========================================== */
 #yt-header {
   position: fixed;
   top: 0;
@@ -37,18 +39,18 @@ body {
   align-items: center;
   text-decoration: none;
 }
+/* 文字がはみ出さないように幅を 120px に設定 */
 .yt-logo-icon {
-  width: 93px;
-  height: 20px;
+  width: 120px;
+  height: 24px;
 }
 .country-code {
   font-size: 10px;
   color: #aaa;
-  margin-left: 4px;
+  margin-left: 2px;
   margin-top: -10px;
 }
 
-/* ヘッダー内のショート切り替えボタン */
 .header-shorts-btn {
   display: flex;
   align-items: center;
@@ -197,7 +199,6 @@ body {
   padding: 2px 4px;
   border-radius: 4px;
 }
-
 .card-details {
   display: flex;
   gap: 12px;
@@ -231,20 +232,22 @@ body {
 }
 
 /* =======================================================
-   通常再生画面 (Watch Page)
+   【最重要】CSS Grid による 2 カラム固定レイアウト
+   iPad・タブレット・PC で関連動画が 100% 右側に並びます
    ======================================================= */
 .watch-layout {
-  display: flex !important;
-  flex-direction: row !important;
+  display: grid !important;
+  grid-template-columns: 1fr 400px !important; /* 左メイン 1fr : 右関連 400px */
   gap: 24px;
-  max-width: 1750px;
+  max-width: 1800px;
   margin: 0 auto;
-  align-items: flex-start;
+  align-items: start;
 }
+
+/* 左側メインカラム */
 .watch-main-column {
-  flex: 1 !important;
   min-width: 0 !important;
-  width: calc(100% - 410px);
+  width: 100% !important;
 }
 .player-outer {
   position: relative;
@@ -402,11 +405,9 @@ body {
   margin-top: 6px;
 }
 
-/* 右側：固定関連動画 */
+/* 【右側】関連動画サイドバー（400px幅固定 ＆ 画面上部に追従） */
 .watch-sidebar-column {
-  width: 386px !important;
-  min-width: 350px !important;
-  flex-shrink: 0 !important;
+  width: 400px !important;
   position: sticky;
   top: 72px;
   max-height: calc(100vh - 84px);
@@ -460,7 +461,7 @@ body {
 }
 
 /* =======================================================
-   ★ 【新機能】ショート動画 (Shorts) 縦型 9:16 スワイプUI
+   ショート動画 (Shorts) 双方向スワイプ UI
    ======================================================= */
 .shorts-container {
   display: flex;
@@ -472,15 +473,12 @@ body {
   position: relative;
   user-select: none;
 }
-
 .shorts-reel {
   display: flex;
   align-items: flex-end;
   gap: 16px;
   height: 100%;
 }
-
-/* 縦型 9:16 プレイヤー枠 */
 .shorts-player-box {
   height: 100%;
   max-height: calc(100vh - 84px);
@@ -491,14 +489,11 @@ body {
   position: relative;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85);
 }
-
 .shorts-player-box iframe {
   width: 100%;
   height: 100%;
   border: none;
 }
-
-/* 下部オーバーレイ（タイトル・チャンネル情報） */
 .shorts-overlay-bottom {
   position: absolute;
   bottom: 0;
@@ -509,7 +504,6 @@ body {
   z-index: 10;
   pointer-events: none;
 }
-
 .shorts-channel-row {
   display: flex;
   align-items: center;
@@ -536,7 +530,6 @@ body {
   font-weight: 500;
   cursor: pointer;
 }
-
 .shorts-title {
   font-size: 14px;
   line-height: 1.4;
@@ -547,12 +540,11 @@ body {
   pointer-events: auto;
 }
 
-/* 右側アクション列 */
 .shorts-actions {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding-bottom: 16px;
+  gap: 12px;
+  padding-bottom: 12px;
 }
 .shorts-action-item {
   display: flex;
@@ -582,14 +574,19 @@ body {
   width: 24px;
   height: 24px;
 }
-.nav-circle {
+.nav-circle-next {
   background-color: #c00;
 }
-.nav-circle:hover {
+.nav-circle-next:hover {
   background-color: #e00;
 }
+.nav-circle-prev {
+  background-color: #333;
+}
+.nav-circle-prev:hover {
+  background-color: #444;
+}
 
-/* ショートコメントドロワー */
 .shorts-drawer {
   position: absolute;
   top: 0;
@@ -622,9 +619,7 @@ body {
   padding: 16px;
 }
 
-/* ==========================================
-   チャンネル画面
-   ========================================== */
+/* チャンネル画面 */
 .channel-banner-img {
   width: 100%;
   height: 200px;
@@ -688,15 +683,15 @@ body {
   cursor: pointer;
 }
 
-@media (max-width: 1150px) {
+/* スマホ縦向き（700px以下のみ1列） */
+@media (max-width: 700px) {
   .watch-layout {
-    flex-direction: column !important;
+    grid-template-columns: 1fr !important;
   }
   .watch-sidebar-column {
     width: 100% !important;
     position: static;
     max-height: none;
     overflow-y: visible;
-    margin-top: 24px;
   }
 }
