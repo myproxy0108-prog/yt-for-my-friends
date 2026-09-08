@@ -5,14 +5,14 @@
 }
 
 body {
-  font-family: "Roboto", "Arial", sans-serif;
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
   background-color: #0f0f0f;
   color: #f1f1f1;
   overflow-x: hidden;
 }
 
 /* ==========================================
-   ヘッダー (YouTube Header)
+   ヘッダー (YouTube Dark Header)
    ========================================== */
 #yt-header {
   position: fixed;
@@ -25,53 +25,45 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  z-index: 1000;
-  border-bottom: 1px solid #272727;
+  z-index: 2000;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
-}
-
-.icon-btn {
-  background: none;
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.icon-btn:hover {
-  background-color: #272727;
-}
-.icon-btn svg {
-  width: 24px;
-  height: 24px;
 }
 
 .logo {
   display: flex;
   align-items: center;
   text-decoration: none;
+  position: relative;
+}
+.yt-logo-icon {
+  width: 93px;
+  height: 20px;
+}
+.country-code {
+  font-size: 10px;
+  color: #aaa;
+  margin-left: 4px;
+  margin-top: -10px;
 }
 
 /* 検索バー */
 .header-center {
-  flex: 0 1 732px;
+  flex: 0 1 720px;
   margin: 0 20px;
 }
-
 #search-form {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.search-box {
   display: flex;
   width: 100%;
 }
-
 #search-input {
   width: 100%;
   height: 40px;
@@ -87,7 +79,6 @@ body {
 #search-input:focus {
   border-color: #1c62b9;
 }
-
 #search-btn {
   width: 64px;
   height: 40px;
@@ -103,76 +94,93 @@ body {
 #search-btn:hover {
   background-color: #272727;
 }
-#search-btn svg {
+#search-btn svg, .mic-btn svg, .header-icon-btn svg {
   width: 24px;
   height: 24px;
 }
 
+.mic-btn, .header-icon-btn {
+  background-color: #222;
+  border: none;
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-left: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mic-btn:hover, .header-icon-btn:hover {
+  background-color: #333;
+}
+.header-icon-btn {
+  background: transparent;
+  margin-left: 6px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
 .user-avatar img {
   width: 32px;
   height: 32px;
   border-radius: 50%;
+  margin-left: 12px;
 }
 
 /* ==========================================
-   サイドバー & コンテンツ配置
+   メインエリア（サイドバーなしフルワイド）
    ========================================== */
-#layout-container {
-  display: flex;
+#main-content {
   margin-top: 56px;
   min-height: calc(100vh - 56px);
+  padding: 16px 24px;
 }
 
-#yt-sidebar {
-  width: 240px;
-  background-color: #0f0f0f;
-  padding: 12px;
-  flex-shrink: 0;
-}
-
-.nav-item {
+/* チップフィルターバー */
+.chips-bar {
   display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 10px 12px;
-  color: #f1f1f1;
-  text-decoration: none;
-  border-radius: 10px;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+}
+.chips-bar::-webkit-scrollbar {
+  display: none;
+}
+.chip {
+  background: #272727;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
   font-size: 14px;
-  margin-bottom: 2px;
-}
-.nav-item:hover {
-  background-color: #272727;
-}
-.nav-item.active {
-  background-color: #272727;
   font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
 }
-.nav-item svg {
-  width: 24px;
-  height: 24px;
+.chip:hover {
+  background: #3f3f3f;
+}
+.chip.active {
+  background: #fff;
+  color: #0f0f0f;
 }
 
-#yt-content {
-  flex: 1;
-  padding: 24px;
-  overflow-y: auto;
-}
-
-/* ==========================================
-   動画グリッド (YouTube Video Cards)
-   ========================================== */
+/* 動画グリッド（広々としたカード配置） */
 .video-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px 16px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px 16px;
 }
 
 .video-card {
   cursor: pointer;
 }
-
-.thumbnail-box {
+.thumb-wrap {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -180,14 +188,16 @@ body {
   overflow: hidden;
   background-color: #222;
 }
-
-.thumbnail-box img {
+.thumb-wrap img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.2s;
 }
-
-.duration-badge {
+.video-card:hover .thumb-wrap img {
+  transform: scale(1.02);
+}
+.duration-label {
   position: absolute;
   bottom: 6px;
   right: 6px;
@@ -198,114 +208,111 @@ body {
   border-radius: 4px;
 }
 
-.video-meta {
+.card-details {
   display: flex;
   gap: 12px;
   margin-top: 12px;
 }
-
-.video-channel-avatar {
+.avatar-pic {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background-color: #333;
+  background: #333;
+  flex-shrink: 0;
 }
-
-.video-info {
+.meta-right {
   flex: 1;
+  min-width: 0;
 }
-
-.video-title {
-  font-size: 14px;
+.v-title {
+  font-size: 15px;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   color: #f1f1f1;
 }
-
-.video-channel-name {
-  font-size: 12px;
+.v-channel {
+  font-size: 13px;
   color: #aaa;
   margin-top: 4px;
 }
-.video-channel-name:hover {
+.v-channel:hover {
   color: #fff;
 }
-
-.video-stats {
-  font-size: 12px;
+.v-sub-stats {
+  font-size: 13px;
   color: #aaa;
 }
 
 /* ==========================================
-   動画再生画面 (Watch Page)
+   超巨大シネマ再生画面 (Watch Page)
    ========================================== */
-.watch-layout {
+.watch-container {
   display: flex;
   gap: 24px;
-  max-width: 1700px;
+  max-width: 1800px;
   margin: 0 auto;
 }
 
-.watch-primary {
+.watch-main-column {
   flex: 1;
   min-width: 0;
 }
 
-.player-wrapper {
+/* プレイヤーの巨大枠（横幅いっぱい 16:9） */
+.player-outer {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
 }
-
-.player-wrapper iframe {
+.player-outer iframe {
   width: 100%;
   height: 100%;
   border: none;
 }
 
-.watch-title {
+.video-headline {
   font-size: 20px;
   font-weight: 700;
-  margin-top: 14px;
+  margin-top: 12px;
   line-height: 1.3;
 }
 
-.watch-metadata {
+.video-action-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.channel-info {
+.channel-block {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-
-.channel-avatar {
+.channel-pic {
   width: 40px;
   height: 40px;
   border-radius: 50%;
 }
-
-.channel-name {
-  font-size: 15px;
+.channel-title {
+  font-size: 16px;
   font-weight: 500;
 }
-.channel-subs {
+.channel-subscribers {
   font-size: 12px;
   color: #aaa;
 }
-
-.sub-button {
+.btn-subscribe {
   background: #fff;
   color: #0f0f0f;
   border: none;
@@ -316,109 +323,135 @@ body {
   cursor: pointer;
   margin-left: 12px;
 }
+.btn-subscribe:hover {
+  background: #d9d9d9;
+}
 
-.description-box {
+/* アクションボタン（高評価、共有、保存） */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+.like-dislike-group {
+  display: flex;
   background: #272727;
-  padding: 12px;
+  border-radius: 20px;
+  overflow: hidden;
+}
+.action-btn {
+  background: #272727;
+  color: #f1f1f1;
+  border: none;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.action-btn:hover {
+  background: #3f3f3f;
+}
+.like-btn, .dislike-btn {
+  border-radius: 0;
+  background: transparent;
+}
+.like-divider {
+  width: 1px;
+  background: #3f3f3f;
+  margin: 6px 0;
+}
+.action-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* 概要欄ボックス */
+.desc-box {
+  background: #272727;
+  padding: 12px 16px;
   border-radius: 12px;
   margin-top: 14px;
   font-size: 14px;
   line-height: 1.5;
 }
-
-.description-stats {
-  font-weight: 500;
-  margin-bottom: 8px;
+.desc-stats {
+  font-weight: bold;
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  margin-bottom: 6px;
 }
-
-.description-text {
+.desc-content {
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-/* コメント一覧 */
-.comments-section {
+/* コメント欄 */
+.comments-container {
   margin-top: 24px;
 }
-
-.comments-header {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 16px;
+.comments-top h2 {
+  font-size: 20px;
+  margin-bottom: 20px;
 }
-
 .comment-card {
   display: flex;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
-
-.comment-avatar {
+.c-avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-
-.comment-author {
+.c-author {
   font-size: 13px;
   font-weight: 500;
   margin-right: 8px;
 }
-
-.comment-date {
+.c-time {
   font-size: 12px;
   color: #aaa;
 }
-
-.comment-content {
+.c-body {
   font-size: 14px;
-  line-height: 1.4;
   margin-top: 4px;
+  line-height: 1.4;
   word-break: break-word;
 }
-
-.comment-likes {
+.c-likes {
   font-size: 12px;
   color: #aaa;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
-/* 右側: 関連動画一覧 */
-.watch-secondary {
+/* 右側関連動画 */
+.watch-sidebar-column {
   width: 400px;
   flex-shrink: 0;
 }
-
-.related-header {
-  font-size: 16px;
-  margin-bottom: 12px;
-}
-
-.related-card {
+.related-item {
   display: flex;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   cursor: pointer;
 }
-
-.related-thumb {
+.related-thumb-box {
   width: 168px;
   aspect-ratio: 16 / 9;
   border-radius: 8px;
   overflow: hidden;
-  position: relative;
   flex-shrink: 0;
   background: #222;
 }
-.related-thumb img {
+.related-thumb-box img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .related-title {
   font-size: 14px;
   font-weight: 500;
@@ -428,74 +461,63 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.related-channel {
+.related-channel, .related-stats {
   font-size: 12px;
   color: #aaa;
-  margin-top: 4px;
-}
-.related-views {
-  font-size: 12px;
-  color: #aaa;
+  margin-top: 3px;
 }
 
 /* ==========================================
-   チャンネル画面 (Channel Page)
+   チャンネル画面
    ========================================== */
-.channel-banner {
+.channel-banner-img {
   width: 100%;
-  height: 180px;
+  height: 200px;
   background-size: cover;
   background-position: center;
-  border-radius: 12px;
+  border-radius: 16px;
   background-color: #222;
 }
-
-.channel-header-box {
+.channel-info-row {
   display: flex;
   align-items: center;
   gap: 24px;
   padding: 24px 0;
 }
-
-.channel-large-avatar {
+.channel-big-pic {
   width: 120px;
   height: 120px;
   border-radius: 50%;
 }
-
-.channel-header-details h1 {
-  font-size: 24px;
-  margin-bottom: 6px;
+.channel-meta-details h1 {
+  font-size: 26px;
+  margin-bottom: 4px;
 }
-.channel-header-details p {
+.channel-meta-details p {
   color: #aaa;
   font-size: 14px;
+  margin-top: 4px;
 }
-.channel-desc {
-  margin-top: 8px;
-  max-width: 800px;
-}
-
-.channel-tabs {
-  border-bottom: 1px solid #272727;
+.channel-nav-tabs {
+  border-bottom: 1px solid #333;
   margin-bottom: 20px;
 }
-.channel-tabs span {
+.tab-item {
   display: inline-block;
-  padding: 12px 16px;
+  padding: 12px 20px;
   border-bottom: 2px solid #fff;
-  font-weight: 500;
+  font-weight: bold;
 }
 
-/* 読み込みスピナー */
-.loader-container {
+/* スピナー */
+.loader-wrapper {
   display: flex;
   justify-content: center;
-  padding: 50px 0;
+  padding: 60px 0;
 }
 .spinner {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 4px solid #333;
   border-top-color: #c00;
   border-radius: 50%;
@@ -505,19 +527,16 @@ body {
   to { transform: rotate(360deg); }
 }
 
-.clickable {
+.pointer {
   cursor: pointer;
 }
 
-/* レスポンシブ (スマホ対応) */
-@media (max-width: 1000px) {
-  .watch-layout {
+/* レスポンシブ */
+@media (max-width: 1100px) {
+  .watch-container {
     flex-direction: column;
   }
-  .watch-secondary {
+  .watch-sidebar-column {
     width: 100%;
-  }
-  #yt-sidebar {
-    display: none;
   }
 }
