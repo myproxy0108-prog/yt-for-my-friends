@@ -1,7 +1,9 @@
-const API_BASE = "https://api-ytt-nemu.myproxy0108.workers.dev";
+// =================================================================
+// ⚙️ 設定：あなたの Cloudflare Worker URL を記述してください
+// =================================================================
+const API_BASE = "https://api-nemu-youtube.myproxy0108.workers.dev"; // ← ここを書き換え
 
-
-
+// 自動フォールバック（Worker が一時的に空を返した時の二重防壁）
 const FALLBACK_APIS = [
   "https://yewtu.be",
   "https://vid.puffyan.us",
@@ -19,11 +21,12 @@ const app = {
   commentsToken: null,
   channelToken: null,
 
+  // 重複リクエスト防止フラグ
   isFetchingFeed: false,
   isFetchingComments: false,
   isFetchingChannel: false,
 
-  // ショート動画管理キュー
+  // ★ ショート動画（Shorts）スワイプ管理キュー
   shortsQueue: [],
   currentShortIndex: 0,
   shortsSequenceParams: null,
@@ -39,6 +42,7 @@ const app = {
   },
 
   bindEvents() {
+    // 検索フォーム
     document.getElementById("search-form").addEventListener("submit", (e) => {
       e.preventDefault();
       const q = document.getElementById("search-input").value.trim();
@@ -47,6 +51,7 @@ const app = {
       }
     });
 
+    // ロゴクリックでホーム
     document.getElementById("logo-link").addEventListener("click", (e) => {
       e.preventDefault();
       document.getElementById("search-input").value = "";
@@ -72,6 +77,7 @@ const app = {
     }
   },
 
+  // ルーティング判定（ショート vs 通常動画 vs チャンネル vs 検索）
   handleRoute() {
     const params = new URLSearchParams(window.location.search);
     const shortId = params.get("short") || params.get("shorts");
@@ -79,17 +85,26 @@ const app = {
     const query = params.get("q");
     const channelId = params.get("channel");
 
+    // ショート動画を開く場合
     if (shortId || window.location.pathname.startsWith("/shorts")) {
       const pathShortId = window.location.pathname.replace(/^\/shorts\/?/, "").split("/")[0];
       this.loadShortsView(shortId || pathShortId || null);
-    } else if (videoId) {
+    } 
+    // 通常動画を開く場合
+    else if (videoId) {
       this.loadWatchView(videoId);
-    } else if (channelId) {
+    } 
+    // チャンネルを開く場合
+    else if (channelId) {
       this.loadChannelView(channelId);
-    } else if (query) {
+    } 
+    // 検索を行う場合
+    else if (query) {
       document.getElementById("search-input").value = query;
       this.loadSearchView(query);
-    } else {
+    } 
+    // ホーム
+    else {
       this.loadHomeView();
     }
   },
@@ -104,21 +119,27 @@ const app = {
     document.getElementById(viewId).style.display = "block";
     window.scrollTo(0, 0);
 
+    // ショート画面以外ならショートプレイヤーを停止
     if (viewId !== "view-shorts") {
       document.getElementById("shorts-player").src = "";
+      const drawer = document.getElementById("shorts-comment-drawer");
+      if (drawer) drawer.style.display = "none";
     }
+    // 通常再生画面以外なら通常プレイヤーを停止
     if (viewId !== "view-watch") {
       document.getElementById("nocookie-player").src = "";
     }
   },
 
   // =================================================================
-  // ★ 【下から上 ＆ 上から下】ショート動画双方向スワイプ
+  // ★ 【ショート動画専用】読み込み ＆ 双方向スワイプ制御
   // =================================================================
+
+  // ヘッダーやチップバーからショートフィードを開始
   loadInitialShorts() {
     this.navigate("/?shorts=true");
   },
-// ショート動画読み込み（ハングアップ完全防止版）
+
   async loadShortsView(shortId) {
     this.switchView("view-shorts");
     this.shortsQueue = [];
@@ -131,57 +152,47 @@ const app = {
     document.getElementById("shorts-likes").textContent = "高評価";
     document.getElementById("shorts-comments-count").textContent = "コメント";
 
-    // プレイヤー枠に即座に埋め込みURLをセット（APIの応答を待たずに再生開始！）
-    if (shortId) {
-      document.getElementById("shorts-player").src = `https://www.youtube-nocookie.com/embed/${shortId}?autoplay=1&controls=0&loop=1&playlist=${shortId}`;
-    }
-
     try {
+      // ID指定があれば /api/v1/shorts/:id、無ければ /api/v1/shorts で即座に開始
       const endpoint = shortId ? `/api/v1/shorts/${shortId}` : `/api/v1/shorts`;
-      const res = await fetch(`${API_BASE}${endpoint}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await this.fetchApi(endpoint);
 
       if (data.type === "shorts" && data.current) {
+        // 現在の動画をキューの先頭にセット
         this.shortsQueue.push(data.current);
 
+        // 次にスワイプすると流れてくる動画シーケンスをキューに追加
         if (data.sequence && data.sequence.length > 0) {
-          data.sequence.forEach(s => this.shortsQueue.push(s));
+          data.sequence.forEach(s => {
+            if (!this.shortsQueue.some(x => x.id === s.id)) {
+              this.shortsQueue.push(s);
+            }
+          });
         }
 
         this.shortsSequenceParams = data.sequenceParams || null;
         this.renderCurrentShort();
+      } else {
+        throw new Error("動画データの形式が不正です");
       }
     } catch (err) {
-      console.warn("Shorts API error, fallback to direct player:", err);
-      // 万が一 API が失敗しても、指定したショート動画単体で再生を維持する
-      if (shortId) {
-        document.getElementById("shorts-title").textContent = "ショート動画";
-        document.getElementById("shorts-channel-name").textContent = "YouTube Creator";
-        this.shortsQueue = [{
-          id: shortId,
-          title: "ショート動画",
-          author: "YouTube Creator",
-          embedUrl: `https://www.youtube-nocookie.com/embed/${shortId}?autoplay=1&controls=0&loop=1&playlist=${shortId}`
-        }];
-        this.renderCurrentShort();
-      } else {
-        document.getElementById("shorts-title").textContent = "ショート動画の読み込みに失敗しました。";
-      }
+      document.getElementById("shorts-title").textContent = "ショート動画の取得に失敗しました。もう一度お試しください。";
     }
   },
 
+  // 現在のショート動画を画面に反映して再生
   renderCurrentShort() {
     const item = this.shortsQueue[this.currentShortIndex];
     if (!item) return;
 
+    // 縦型プレイヤーに動画URLを流し込み
     const player = document.getElementById("shorts-player");
     const targetEmbed = item.embedUrl || `https://www.youtube-nocookie.com/embed/${item.id}?autoplay=1&controls=0&loop=1&playlist=${item.id}`;
     if (player.src !== targetEmbed) {
       player.src = targetEmbed;
     }
 
-    document.getElementById("shorts-title").textContent = item.title || "";
+    document.getElementById("shorts-title").textContent = item.title || "Shorts";
     document.getElementById("shorts-channel-name").textContent = item.author || "YouTube Creator";
     document.getElementById("shorts-channel-name").onclick = () => this.smartChannelNav(item.authorId || item.author);
     document.getElementById("shorts-channel-avatar").src = item.authorThumbnails?.[0]?.url || "https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png";
@@ -189,15 +200,16 @@ const app = {
     document.getElementById("shorts-likes").textContent = item.likeCount || "高評価";
     document.getElementById("shorts-comments-count").textContent = item.commentCount || "コメント";
 
+    // ブラウザのURLバーを同期（リロードなし）
     window.history.replaceState({}, "", `/?short=${item.id}`);
 
-    // 残り 2 本以下になったら次を自動追加先読み
+    // 残りの待機動画が 2 本以下になったら裏で次のシーケンスを自動先読み追加
     if (this.shortsQueue.length - this.currentShortIndex <= 2 && this.shortsSequenceParams && !this.isFetchingShortsBatch) {
       this.fetchMoreShortsSequence();
     }
   },
 
-  // 下から上へのスワイプ（次の動画）
+  // 下から上へスワイプ（次の動画へ進む）
   nextShort() {
     if (this.currentShortIndex < this.shortsQueue.length - 1) {
       this.currentShortIndex++;
@@ -212,7 +224,7 @@ const app = {
     }
   },
 
-  // 上から下へのスワイプ（前の動画に戻る）
+  // 上から下へスワイプ（前の動画へ戻る）
   prevShort() {
     if (this.currentShortIndex > 0) {
       this.currentShortIndex--;
@@ -220,6 +232,7 @@ const app = {
     }
   },
 
+  // 次のショート動画シーケンスを追加取得（無限スワイプ）
   async fetchMoreShortsSequence() {
     if (this.isFetchingShortsBatch || !this.shortsSequenceParams) return;
     this.isFetchingShortsBatch = true;
@@ -240,11 +253,11 @@ const app = {
     }
   },
 
-  // スワイプ＆スクロール操作の登録（上下双方向）
+  // スワイプ・ホイール・キーボード操作の登録（上下双方向）
   setupShortsSwipeEvents() {
     const area = document.getElementById("shorts-touch-area");
 
-    // 1. マウスホイール（下回転で次、上回転で前）
+    // 1. マウスホイール（下スクロールで次、上スクロールで前）
     let wheelTimeout = null;
     area.addEventListener("wheel", (e) => {
       e.preventDefault();
@@ -288,6 +301,7 @@ const app = {
     });
   },
 
+  // ショートコメントの開閉
   async toggleShortsComments() {
     const drawer = document.getElementById("shorts-comment-drawer");
     const list = document.getElementById("shorts-comments-list");
@@ -299,18 +313,18 @@ const app = {
     }
 
     drawer.style.display = "flex";
-    list.innerHTML = "<p style='color:#aaa;'>コメントを読み込んでいます...</p>";
+    list.innerHTML = "<p style='color:#aaa;padding:10px;'>コメントを読み込んでいます...</p>";
 
     if (!current) return;
     try {
       const data = await this.fetchApi(`/api/v1/comments/${current.id}?limit=30`);
       if (!data.comments || data.comments.length === 0) {
-        list.innerHTML = "<p style='color:#aaa;'>コメントはありません。</p>";
+        list.innerHTML = "<p style='color:#aaa;padding:10px;'>コメントはありません。</p>";
         return;
       }
       list.innerHTML = data.comments.map(c => `
         <div style="display:flex;gap:10px;margin-bottom:12px;">
-          <img src="${c.authorThumbnails?.[0]?.url || 'https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png'}" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;">
+          <img src="${c.authorThumbnails?.[0]?.url || 'https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png'}" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;" alt="">
           <div style="font-size:12px;">
             <b>${this.escape(c.author)}</b> <span style="color:#aaa;">${c.publishedText}</span>
             <div style="margin-top:2px;font-size:13px;line-height:1.3;">${this.escape(c.content)}</div>
@@ -319,12 +333,12 @@ const app = {
         </div>
       `).join("");
     } catch (e) {
-      list.innerHTML = "<p style='color:#ff4e4e;'>コメントの取得に失敗しました。</p>";
+      list.innerHTML = "<p style='color:#ff4e4e;padding:10px;'>コメントの取得に失敗しました。</p>";
     }
   },
 
   // =================================================================
-  // 無限スクロール監視エンジン（チャンネル追加読み込み完全対応）
+  // 無限スクロール監視エンジン（二重監視で不発を完全防止）
   // =================================================================
   setupInfiniteScroll() {
     const observerOptions = { root: null, rootMargin: "800px", threshold: 0 };
@@ -337,12 +351,11 @@ const app = {
       if (entries[0].isIntersecting && this.commentsToken && !this.isFetchingComments) this.loadMoreComments();
     }, observerOptions).observe(document.getElementById("comments-sentinel"));
 
-    // チャンネル動画センチネル監視
     new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && this.channelToken && !this.isFetchingChannel) this.loadMoreChannelVideos();
     }, observerOptions).observe(document.getElementById("channel-sentinel"));
 
-    // バックアップ用スクロールリスナー
+    // スクロールイベントによるバックアップ監視
     let scrollTimeout = null;
     window.addEventListener("scroll", () => {
       if (scrollTimeout) return;
@@ -370,6 +383,7 @@ const app = {
     this.navigate(`/?q=${encodeURIComponent(q)}`);
   },
 
+  // 1. ホーム画面ロード
   async loadHomeView() {
     this.switchView("view-feed");
     this.currentQuery = "おすすめ";
@@ -379,6 +393,7 @@ const app = {
     await this.loadMoreFeed();
   },
 
+  // 2. 検索画面ロード
   async loadSearchView(query) {
     this.switchView("view-feed");
     this.currentQuery = query;
@@ -395,7 +410,7 @@ const app = {
     try {
       const endpoint = this.feedToken
         ? `/api/v1/search?continuation=${encodeURIComponent(this.feedToken)}`
-        : `/api/v1/search?q=${encodeURIComponent(this.currentQuery)}&limit=50`;
+        : `/api/v1/search?q=${encodeURIComponent(this.currentQuery)}&limit=20`;
       const data = await this.fetchApi(endpoint);
       const videos = Array.isArray(data) ? data : (data.results || []);
       this.feedToken = data.continuation || null;
@@ -408,6 +423,7 @@ const app = {
     }
   },
 
+  // 動画カードクリック判定（通常動画 vs ショート動画の自動分岐）
   appendVideosToGrid(videos, container) {
     if (!videos || videos.length === 0) return;
 
@@ -418,6 +434,7 @@ const app = {
       const authorTarget = v.authorId || v.channel?.id || author;
       const vId = v.videoId || v.id;
 
+      // 60秒以下またはタイトルに #shorts があればショート画面へ自動遷移
       const isShort = (v.lengthSeconds && v.lengthSeconds <= 60) || (v.title && v.title.toLowerCase().includes("#shorts"));
       const clickAction = isShort ? `app.navigate('/?short=${vId}')` : `app.navigate('/?v=${vId}')`;
 
@@ -469,9 +486,10 @@ const app = {
       document.getElementById("watch-date").textContent = data.publishedText || "";
       document.getElementById("watch-description").textContent = data.description || "説明はありません。";
 
+      // 関連動画の描画（右側に固定配置）
       let relVideos = data.recommendedVideos || [];
       if (relVideos.length === 0) {
-        const fallback = await this.fetchApi(`/api/v1/search?q=${encodeURIComponent(data.author || "人気動画")}&limit=20`);
+        const fallback = await this.fetchApi(`/api/v1/search?q=${encodeURIComponent(data.author || "人気動画")}&limit=12`);
         relVideos = Array.isArray(fallback) ? fallback : (fallback.results || []);
       }
       this.renderRelatedVideos(relVideos);
@@ -507,7 +525,7 @@ const app = {
     try {
       const endpoint = this.commentsToken
         ? `/api/v1/comments/${this.currentVideoId}?continuation=${encodeURIComponent(this.commentsToken)}`
-        : `/api/v1/comments/${this.currentVideoId}?limit=50`;
+        : `/api/v1/comments/${this.currentVideoId}?limit=20`;
 
       const data = await this.fetchApi(endpoint);
       if (!this.commentsToken) {
@@ -543,9 +561,7 @@ const app = {
     container.insertAdjacentHTML("beforeend", html);
   },
 
-  // =================================================================
-  // ★ 【修復完了】チャンネル動画の追加読み込み
-  // =================================================================
+  // チャンネル画面ロード
   async loadChannelView(channelTarget) {
     this.switchView("view-channel");
     this.currentChannelTarget = channelTarget;
@@ -555,7 +571,7 @@ const app = {
     document.getElementById("channel-sentinel").style.display = "flex";
 
     try {
-      const data = await this.fetchApi(`/api/v1/channels/${encodeURIComponent(channelTarget)}?limit=50`);
+      const data = await this.fetchApi(`/api/v1/channels/${encodeURIComponent(channelTarget)}?limit=20`);
       document.getElementById("channel-page-name").textContent = data.author || "";
       document.getElementById("channel-page-subs").textContent = data.subCount ? data.subCount.toLocaleString() + " 人の登録者" : "";
       document.getElementById("channel-page-desc").textContent = data.description || "";
@@ -565,10 +581,7 @@ const app = {
 
       this.channelToken = data.continuation || null;
       this.appendVideosToGrid(data.latestVideos || [], grid);
-
-      if (!this.channelToken) {
-        document.getElementById("channel-sentinel").style.display = "none";
-      }
+      if (!this.channelToken) document.getElementById("channel-sentinel").style.display = "none";
     } catch (err) {
       document.getElementById("channel-sentinel").style.display = "none";
     }
@@ -578,15 +591,11 @@ const app = {
     if (this.isFetchingChannel || !this.channelToken) return;
     this.isFetchingChannel = true;
     const grid = document.getElementById("channel-video-grid");
-
     try {
       const data = await this.fetchApi(`/api/v1/channels/${encodeURIComponent(this.currentChannelTarget)}?continuation=${encodeURIComponent(this.channelToken)}`);
       this.channelToken = data.continuation || null;
       this.appendVideosToGrid(data.latestVideos || [], grid);
-
-      if (!this.channelToken) {
-        document.getElementById("channel-sentinel").style.display = "none";
-      }
+      if (!this.channelToken) document.getElementById("channel-sentinel").style.display = "none";
     } catch (err) {
       document.getElementById("channel-sentinel").style.display = "none";
     } finally {
