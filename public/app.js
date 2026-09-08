@@ -118,7 +118,7 @@ const app = {
   loadInitialShorts() {
     this.navigate("/?shorts=true");
   },
-
+// ショート動画読み込み（ハングアップ完全防止版）
   async loadShortsView(shortId) {
     this.switchView("view-shorts");
     this.shortsQueue = [];
@@ -131,9 +131,16 @@ const app = {
     document.getElementById("shorts-likes").textContent = "高評価";
     document.getElementById("shorts-comments-count").textContent = "コメント";
 
+    // プレイヤー枠に即座に埋め込みURLをセット（APIの応答を待たずに再生開始！）
+    if (shortId) {
+      document.getElementById("shorts-player").src = `https://www.youtube-nocookie.com/embed/${shortId}?autoplay=1&controls=0&loop=1&playlist=${shortId}`;
+    }
+
     try {
       const endpoint = shortId ? `/api/v1/shorts/${shortId}` : `/api/v1/shorts`;
-      const data = await this.fetchApi(endpoint);
+      const res = await fetch(`${API_BASE}${endpoint}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
 
       if (data.type === "shorts" && data.current) {
         this.shortsQueue.push(data.current);
@@ -146,7 +153,21 @@ const app = {
         this.renderCurrentShort();
       }
     } catch (err) {
-      document.getElementById("shorts-title").textContent = "ショート動画の取得に失敗しました。";
+      console.warn("Shorts API error, fallback to direct player:", err);
+      // 万が一 API が失敗しても、指定したショート動画単体で再生を維持する
+      if (shortId) {
+        document.getElementById("shorts-title").textContent = "ショート動画";
+        document.getElementById("shorts-channel-name").textContent = "YouTube Creator";
+        this.shortsQueue = [{
+          id: shortId,
+          title: "ショート動画",
+          author: "YouTube Creator",
+          embedUrl: `https://www.youtube-nocookie.com/embed/${shortId}?autoplay=1&controls=0&loop=1&playlist=${shortId}`
+        }];
+        this.renderCurrentShort();
+      } else {
+        document.getElementById("shorts-title").textContent = "ショート動画の読み込みに失敗しました。";
+      }
     }
   },
 
