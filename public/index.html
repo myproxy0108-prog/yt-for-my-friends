@@ -8,7 +8,7 @@
   <link rel="icon" href="https://www.youtube.com/s/desktop/f5209772/img/favicon.ico">
 </head>
 <body>
-  <!-- ヘッダー（本物YouTube完全再現） -->
+  <!-- ヘッダー -->
   <header id="yt-header">
     <div class="header-left">
       <a href="/" id="logo-link" class="logo">
@@ -50,16 +50,10 @@
     </div>
   </header>
 
-  <!-- メインコンテンツ（サイドバーなしのフルワイドレイアウト） -->
+  <!-- メイン画面（サイドバーなし） -->
   <main id="main-content">
-    <!-- ローディングスピナー -->
-    <div id="loader" class="loader-wrapper" style="display:none;">
-      <div class="spinner"></div>
-    </div>
-
     <!-- 1. ホーム / 検索一覧ビュー -->
     <div id="view-feed" class="view">
-      <!-- カテゴリフィルターチップバー -->
       <div class="chips-bar">
         <button class="chip active" onclick="app.search('すべて')">すべて</button>
         <button class="chip" onclick="app.search('音楽')">音楽</button>
@@ -72,24 +66,26 @@
         <button class="chip" onclick="app.search('料理')">料理</button>
       </div>
 
-      <!-- 動画グリッド -->
       <div id="video-grid" class="video-grid"></div>
+      
+      <!-- フィード用 無限スクロール検知トリガー -->
+      <div id="feed-sentinel" class="scroll-sentinel">
+        <div class="sentinel-spinner"></div>
+      </div>
     </div>
 
-    <!-- 2. 動画再生 (Watch) ビュー（超巨大シネマプレイヤー） -->
+    <!-- 2. 動画再生 (Watch) ビュー：本物仕様 2 カラムレイアウト -->
     <div id="view-watch" class="view" style="display:none;">
-      <div class="watch-container">
-        <!-- 左側メイン：大迫力動画 + タイトル + 概要 + コメント -->
+      <div class="watch-layout">
+        
+        <!-- 【左側】メイン：巨大プレイヤー + タイトル + 概要 + コメント -->
         <div class="watch-main-column">
-          <!-- 16:9 巨大プレイヤー枠 -->
           <div class="player-outer">
             <iframe id="nocookie-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
           </div>
 
-          <!-- 動画タイトル -->
           <h1 id="watch-title" class="video-headline"></h1>
 
-          <!-- チャンネル情報 ＆ アクションボタン群 -->
           <div class="video-action-bar">
             <div class="channel-block">
               <img id="watch-channel-avatar" class="channel-pic pointer" src="" alt="">
@@ -104,7 +100,7 @@
               <div class="like-dislike-group">
                 <button class="action-btn like-btn">
                   <svg viewBox="0 0 24 24"><path fill="currentColor" d="M18.77 11h-4.23l1.52-4.94C16.38 5.03 15.54 4 14.38 4c-.58 0-1.14.24-1.52.65L7 11H3v10h4l1 1h9.43c1.06 0 1.98-.72 2.19-1.77l1.37-7C21.26 12.05 20.18 11 18.77 11zM7 20H5v-8h2v8zm12.32-7.14l-1.37 7c-.07.35-.37.59-.72.59H8.59l-.6-1.41.01-7.18 5.34-5.74c.12-.13.3-.21.48-.21.36 0 .66.3.66.66l-1.64 5.33H18.77c.45 0 .8.41.74.86z"/></svg>
-                  <span id="watch-likes">高く評価</span>
+                  <span>高く評価</span>
                 </button>
                 <div class="like-divider"></div>
                 <button class="action-btn dislike-btn" title="低く評価">
@@ -124,7 +120,6 @@
             </div>
           </div>
 
-          <!-- 概要欄ボックス（本物と同じグレーの角丸） -->
           <div id="watch-description-box" class="desc-box">
             <div class="desc-stats">
               <span id="watch-views"></span>
@@ -133,19 +128,24 @@
             <div id="watch-description" class="desc-content"></div>
           </div>
 
-          <!-- コメントエリア -->
           <div class="comments-container">
             <div class="comments-top">
               <h2 id="comments-count-title">コメント</h2>
             </div>
             <div id="comments-list" class="comments-wrapper"></div>
+            <!-- コメント用 無限スクロール検知トリガー -->
+            <div id="comments-sentinel" class="scroll-sentinel">
+              <div class="sentinel-spinner"></div>
+            </div>
           </div>
         </div>
 
-        <!-- 右側：関連動画リスト -->
-        <div class="watch-sidebar-column">
+        <!-- 【右側】関連動画サイドバー（本物 YouTube 同様、右に固定配置） -->
+        <aside class="watch-sidebar-column">
+          <div class="related-header-title">次の動画</div>
           <div id="related-videos-list" class="related-wrapper"></div>
-        </div>
+        </aside>
+
       </div>
     </div>
 
@@ -164,6 +164,10 @@
         <span class="tab-item active">動画</span>
       </div>
       <div id="channel-video-grid" class="video-grid"></div>
+      <!-- チャンネル動画用 無限スクロール検知トリガー -->
+      <div id="channel-sentinel" class="scroll-sentinel">
+        <div class="sentinel-spinner"></div>
+      </div>
     </div>
   </main>
 
