@@ -1,7 +1,7 @@
 // =================================================================
 // ⚙️ 設定：あなたの Cloudflare Worker URL を記述してください
 // =================================================================
-const API_BASE = "https://nemu-api-yt.myproxy0108.workers.dev"; // ← ここを書き換え
+const API_BASE = "https://yt-api-nemuu.myproxy0108.workers.dev"; // ← ここを書き換え
 
 const FALLBACK_APIS = [
   "https://yewtu.be",
