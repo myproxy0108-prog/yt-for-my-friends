@@ -1,1 +1,523 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
+body {
+  font-family: "Roboto", "Arial", sans-serif;
+  background-color: #0f0f0f;
+  color: #f1f1f1;
+  overflow-x: hidden;
+}
+
+/* ==========================================
+   ヘッダー (YouTube Header)
+   ========================================== */
+#yt-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background-color: #0f0f0f;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 1000;
+  border-bottom: 1px solid #272727;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-btn:hover {
+  background-color: #272727;
+}
+.icon-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* 検索バー */
+.header-center {
+  flex: 0 1 732px;
+  margin: 0 20px;
+}
+
+#search-form {
+  display: flex;
+  width: 100%;
+}
+
+#search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 16px;
+  background-color: #121212;
+  border: 1px solid #303030;
+  border-right: none;
+  border-radius: 40px 0 0 40px;
+  color: #fff;
+  font-size: 16px;
+  outline: none;
+}
+#search-input:focus {
+  border-color: #1c62b9;
+}
+
+#search-btn {
+  width: 64px;
+  height: 40px;
+  background-color: #222222;
+  border: 1px solid #303030;
+  border-radius: 0 40px 40px 0;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#search-btn:hover {
+  background-color: #272727;
+}
+#search-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.user-avatar img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+/* ==========================================
+   サイドバー & コンテンツ配置
+   ========================================== */
+#layout-container {
+  display: flex;
+  margin-top: 56px;
+  min-height: calc(100vh - 56px);
+}
+
+#yt-sidebar {
+  width: 240px;
+  background-color: #0f0f0f;
+  padding: 12px;
+  flex-shrink: 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 12px;
+  color: #f1f1f1;
+  text-decoration: none;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.nav-item:hover {
+  background-color: #272727;
+}
+.nav-item.active {
+  background-color: #272727;
+  font-weight: 500;
+}
+.nav-item svg {
+  width: 24px;
+  height: 24px;
+}
+
+#yt-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+/* ==========================================
+   動画グリッド (YouTube Video Cards)
+   ========================================== */
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px 16px;
+}
+
+.video-card {
+  cursor: pointer;
+}
+
+.thumbnail-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #222;
+}
+
+.thumbnail-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.duration-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.85);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.video-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.video-channel-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #333;
+}
+
+.video-info {
+  flex: 1;
+}
+
+.video-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: #f1f1f1;
+}
+
+.video-channel-name {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 4px;
+}
+.video-channel-name:hover {
+  color: #fff;
+}
+
+.video-stats {
+  font-size: 12px;
+  color: #aaa;
+}
+
+/* ==========================================
+   動画再生画面 (Watch Page)
+   ========================================== */
+.watch-layout {
+  display: flex;
+  gap: 24px;
+  max-width: 1700px;
+  margin: 0 auto;
+}
+
+.watch-primary {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.player-wrapper iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.watch-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 14px;
+  line-height: 1.3;
+}
+
+.watch-metadata {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.channel-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.channel-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.channel-name {
+  font-size: 15px;
+  font-weight: 500;
+}
+.channel-subs {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.sub-button {
+  background: #fff;
+  color: #0f0f0f;
+  border: none;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-left: 12px;
+}
+
+.description-box {
+  background: #272727;
+  padding: 12px;
+  border-radius: 12px;
+  margin-top: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.description-stats {
+  font-weight: 500;
+  margin-bottom: 8px;
+  display: flex;
+  gap: 10px;
+}
+
+.description-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* コメント一覧 */
+.comments-section {
+  margin-top: 24px;
+}
+
+.comments-header {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.comment-card {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.comment-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.comment-author {
+  font-size: 13px;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.comment-date {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.comment-content {
+  font-size: 14px;
+  line-height: 1.4;
+  margin-top: 4px;
+  word-break: break-word;
+}
+
+.comment-likes {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 4px;
+}
+
+/* 右側: 関連動画一覧 */
+.watch-secondary {
+  width: 400px;
+  flex-shrink: 0;
+}
+
+.related-header {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.related-card {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.related-thumb {
+  width: 168px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  background: #222;
+}
+.related-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.related-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.related-channel {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 4px;
+}
+.related-views {
+  font-size: 12px;
+  color: #aaa;
+}
+
+/* ==========================================
+   チャンネル画面 (Channel Page)
+   ========================================== */
+.channel-banner {
+  width: 100%;
+  height: 180px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 12px;
+  background-color: #222;
+}
+
+.channel-header-box {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 0;
+}
+
+.channel-large-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+}
+
+.channel-header-details h1 {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+.channel-header-details p {
+  color: #aaa;
+  font-size: 14px;
+}
+.channel-desc {
+  margin-top: 8px;
+  max-width: 800px;
+}
+
+.channel-tabs {
+  border-bottom: 1px solid #272727;
+  margin-bottom: 20px;
+}
+.channel-tabs span {
+  display: inline-block;
+  padding: 12px 16px;
+  border-bottom: 2px solid #fff;
+  font-weight: 500;
+}
+
+/* 読み込みスピナー */
+.loader-container {
+  display: flex;
+  justify-content: center;
+  padding: 50px 0;
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #333;
+  border-top-color: #c00;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+/* レスポンシブ (スマホ対応) */
+@media (max-width: 1000px) {
+  .watch-layout {
+    flex-direction: column;
+  }
+  .watch-secondary {
+    width: 100%;
+  }
+  #yt-sidebar {
+    display: none;
+  }
+}
