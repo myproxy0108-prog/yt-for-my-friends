@@ -2,6 +2,9 @@ const API_BASE = "https://api-yt-bynemu.myproxy0108.workers.dev"; // ← ここ�
 
 // 自動フォールバック（Worker が一時的に 0 件を返した時の二重防壁）
 const FALLBACK_APIS = [
+  "https://yewtu.be",
+  "https://vid.puffyan.us",
+  "https://invidious.nerdvpn.de"
 ];
 
 const app = {
