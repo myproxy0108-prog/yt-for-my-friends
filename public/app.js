@@ -1,7 +1,7 @@
 // =================================================================
 // ⚙️ 設定：あなたの Cloudflare Worker の URL を貼り付けてください
 // =================================================================
-const API_BASE = "https://あなたのWorker.workers.dev"; // ← ここを書き換え
+const API_BASE = "https://yt-api-nemu.myproxy0108.workers.dev/"; // ← ここを書き換え
 
 const app = {
   init() {
