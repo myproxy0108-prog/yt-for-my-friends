@@ -8,19 +8,19 @@
   <link rel="icon" href="https://www.youtube.com/s/desktop/f5209772/img/favicon.ico">
 </head>
 <body>
-  <!-- ヘッダー -->
+  <!-- ヘッダー（文字削れバグ完全修正版） -->
   <header id="yt-header">
     <div class="header-left">
       <a href="/" id="logo-link" class="logo">
-        <svg class="yt-logo-icon" viewBox="0 0 90 20">
+        <!-- 文字が削れないよう viewBox を 130 24 に拡大 -->
+        <svg class="yt-logo-icon" viewBox="0 0 130 24">
           <path fill="#FF0000" d="M27.973,3.104c-1.164-0.435-9.378-0.435-9.378-0.435s-8.214,0-9.378,0.435C8.053,3.539,7.185,4.407,6.75,5.571 C6.315,6.735,6.315,9.15,6.315,9.15s0,2.415,0.435,3.579c0.435,1.164,1.303,2.032,2.467,2.467c1.164,0.435,9.378,0.435,9.378,0.435 s8.214,0,9.378-0.435c1.164-0.435,2.032-1.303,2.467-2.467c0.435-1.164,0.435-3.579,0.435-3.579s0-2.415-0.435-3.579 C30.005,4.407,29.137,3.539,27.973,3.104z"/>
           <polygon fill="#FFFFFF" points="16.5,12.5 22.5,9.15 16.5,5.8"/>
-          <text x="36" y="16" fill="#FFFFFF" font-family="'YouTube Sans', Roboto, sans-serif" font-weight="700" font-size="16.5">YouTube</text>
+          <text x="35" y="17" fill="#FFFFFF" font-family="'YouTube Sans', Roboto, sans-serif" font-weight="700" font-size="16.5" letter-spacing="-0.4px">YouTube</text>
         </svg>
         <span class="country-code">JP</span>
       </a>
-      <!-- ショート動画切り替えボタン -->
-      <button class="header-shorts-btn pointer" onclick="app.loadInitialShorts()" title="YouTube ショートを開く">
+      <button class="header-shorts-btn pointer" onclick="app.loadInitialShorts()" title="YouTube ショート">
         <svg viewBox="0 0 24 24" width="20" height="20"><path fill="#FF0000" d="M17.77 10.32l-1.2-.5L18 8.06a3.74 3.74 0 0 0-3.5-5.26 3.8 3.8 0 0 0-2.86 1.3L6.2 10.6a3.74 3.74 0 0 0 2.33 6.13 3.6 3.6 0 0 0 1.2.19l1.2.5-1.43 1.76a3.74 3.74 0 0 0 3.5 5.26 3.8 3.8 0 0 0 2.86-1.3l5.44-6.5a3.74 3.74 0 0 0-2.33-6.13zM10 14.5v-5l4.5 2.5-4.5 2.5z"/></svg>
         <span>ショート</span>
       </button>
@@ -46,10 +46,10 @@
     </div>
   </header>
 
-  <!-- メインコンテンツ -->
+  <!-- メインコンテンツ（サイドバーなしフルワイド） -->
   <main id="main-content">
     
-    <!-- 1. ホーム / 検索一覧ビュー（通常動画フィード） -->
+    <!-- 1. ホーム / 検索一覧ビュー -->
     <div id="view-feed" class="view">
       <div class="chips-bar">
         <button class="chip active" onclick="app.search('すべて')">すべて</button>
@@ -69,9 +69,11 @@
       </div>
     </div>
 
-    <!-- 2. 通常動画再生 (Watch) ビュー：2カラム（左プレイヤー、右関連動画） -->
+    <!-- 2. 通常再生 (Watch) ビュー：CSS Grid による鉄壁の 2 カラム配置 -->
     <div id="view-watch" class="view" style="display:none;">
       <div class="watch-layout">
+        
+        <!-- 【左側メイン】大迫力シネマプレイヤー + コメント -->
         <div class="watch-main-column">
           <div class="player-outer">
             <iframe id="nocookie-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
@@ -132,24 +134,23 @@
           </div>
         </div>
 
-        <!-- 右側：固定関連動画 -->
+        <!-- 【右側】関連動画サイドバー（確実に右側に配置） -->
         <aside class="watch-sidebar-column">
           <div class="related-header-title">次の動画</div>
           <div id="related-videos-list" class="related-wrapper"></div>
         </aside>
+
       </div>
     </div>
 
-    <!-- 3. ★【新搭載】ショート動画 (Shorts) スワイプ専用ビュー -->
+    <!-- 3. ショート動画 (Shorts) ビュー（上下双方向スワイプ対応） -->
     <div id="view-shorts" class="view" style="display:none;">
       <div class="shorts-container" id="shorts-touch-area">
         <div class="shorts-reel">
           
-          <!-- 縦型 9:16 シネマプレイヤー -->
           <div class="shorts-player-box">
             <iframe id="shorts-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
             
-            <!-- 下部オーバーレイ情報 -->
             <div class="shorts-overlay-bottom">
               <div class="shorts-channel-row">
                 <img id="shorts-channel-avatar" class="shorts-avatar pointer" src="" alt="">
@@ -160,8 +161,16 @@
             </div>
           </div>
 
-          <!-- 右側アクションボタン列（本物Shorts完全再現） -->
+          <!-- 右側アクションボタン列（上下ナビボタン追加） -->
           <div class="shorts-actions">
+            <!-- ↑ 前の動画へ戻るボタン -->
+            <div class="shorts-action-item pointer" onclick="app.prevShort()" title="前のショートへ戻る (上スワイプ / ↑キー)">
+              <div class="action-circle nav-circle-prev">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z"/></svg>
+              </div>
+              <span>前へ</span>
+            </div>
+
             <div class="shorts-action-item">
               <div class="action-circle">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M18.77 11h-4.23l1.52-4.94C16.38 5.03 15.54 4 14.38 4c-.58 0-1.14.24-1.52.65L7 11H3v10h4l1 1h9.43c1.06 0 1.98-.72 2.19-1.77l1.37-7C21.26 12.05 20.18 11 18.77 11zM7 20H5v-8h2v8zm12.32-7.14l-1.37 7c-.07.35-.37.59-.72.59H8.59l-.6-1.41.01-7.18 5.34-5.74c.12-.13.3-.21.48-.21.36 0 .66.3.66.66l-1.64 5.33H18.77c.45 0 .8.41.74.86z"/></svg>
@@ -183,9 +192,9 @@
               <span id="shorts-comments-count">コメント</span>
             </div>
 
-            <!-- 次の動画へ手動スワイプするナビボタン -->
-            <div class="shorts-action-item pointer" onclick="app.nextShort()">
-              <div class="action-circle nav-circle" title="次のショートへ">
+            <!-- ↓ 次の動画へ進むボタン -->
+            <div class="shorts-action-item pointer" onclick="app.nextShort()" title="次のショートへ (下スワイプ / ↓キー)">
+              <div class="action-circle nav-circle-next">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
               </div>
               <span>次へ</span>
@@ -194,7 +203,6 @@
 
         </div>
 
-        <!-- ショート動画用 スライドコメントドロワー -->
         <div id="shorts-comment-drawer" class="shorts-drawer" style="display:none;">
           <div class="drawer-header">
             <h3>コメント</h3>
@@ -206,7 +214,7 @@
       </div>
     </div>
 
-    <!-- 4. チャンネル ビュー -->
+    <!-- 4. チャンネル ビュー（追加読み込み完全対応） -->
     <div id="view-channel" class="view" style="display:none;">
       <div id="channel-banner" class="channel-banner-img"></div>
       <div class="channel-info-row">
