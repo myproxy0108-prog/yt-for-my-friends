@@ -12,7 +12,7 @@ body {
 }
 
 /* ==========================================
-   ヘッダー
+   ヘッダー (YouTube Dark Header)
    ========================================== */
 #yt-header {
   position: fixed;
@@ -29,6 +29,10 @@ body {
   border-bottom: 1px solid #222;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+}
 .logo {
   display: flex;
   align-items: center;
@@ -126,7 +130,7 @@ body {
 }
 
 /* ==========================================
-   メインエリア（サイドバーなしフルスクリーン）
+   メインエリア
    ========================================== */
 #main-content {
   margin-top: 56px;
@@ -206,13 +210,6 @@ body {
   gap: 12px;
   margin-top: 12px;
 }
-.avatar-pic {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #333;
-  flex-shrink: 0;
-}
 .meta-right {
   flex: 1;
   min-width: 0;
@@ -240,20 +237,24 @@ body {
   color: #aaa;
 }
 
-/* ==========================================
-   本物仕様：2カラム再生画面 (Watch Page)
-   ========================================== */
+/* =======================================================
+   【最重要】再生画面：本物 YouTube 左右 2 カラム固定レイアウト
+   iPad・タブレット・PC でも確実に関連動画を「右」にキープ！
+   ======================================================= */
 .watch-layout {
-  display: flex;
+  display: flex !important;
+  flex-direction: row !important; /* ★常に横並び 2 カラム★ */
   gap: 24px;
   max-width: 1750px;
   margin: 0 auto;
+  align-items: flex-start;
 }
 
-/* 【左側メイン】大迫力シネマプレイヤー */
+/* 【左側メイン】大迫力シネマプレイヤー + コメント */
 .watch-main-column {
-  flex: 1;
-  min-width: 0;
+  flex: 1 !important;
+  min-width: 0 !important;
+  width: calc(100% - 410px);
 }
 
 .player-outer {
@@ -286,7 +287,6 @@ body {
   flex-wrap: wrap;
   gap: 12px;
 }
-
 .channel-block {
   display: flex;
   align-items: center;
@@ -416,11 +416,27 @@ body {
   margin-top: 6px;
 }
 
-/* 【右側】関連動画サイドバー */
+/* =======================================================
+   【最重要】右側：関連動画サイドバー（380px 固定 ＆ 画面追従）
+   ======================================================= */
 .watch-sidebar-column {
-  width: 402px;
-  flex-shrink: 0;
+  width: 386px !important;
+  min-width: 350px !important;
+  flex-shrink: 0 !important;
+  position: sticky;
+  top: 72px; /* スクロールしても画面右上に固定される */
+  max-height: calc(100vh - 84px);
+  overflow-y: auto;
+  padding-right: 4px;
 }
+.watch-sidebar-column::-webkit-scrollbar {
+  width: 6px;
+}
+.watch-sidebar-column::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
 .related-header-title {
   font-size: 16px;
   font-weight: 500;
@@ -461,7 +477,49 @@ body {
 }
 
 /* ==========================================
-   無限スクロール検知スピナー
+   チャンネル画面
+   ========================================== */
+.channel-banner-img {
+  width: 100%;
+  height: 200px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 16px;
+  background-color: #222;
+}
+.channel-info-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 0;
+}
+.channel-big-pic {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+}
+.channel-meta-details h1 {
+  font-size: 26px;
+  margin-bottom: 4px;
+}
+.channel-meta-details p {
+  color: #aaa;
+  font-size: 14px;
+  margin-top: 4px;
+}
+.channel-nav-tabs {
+  border-bottom: 1px solid #333;
+  margin-bottom: 20px;
+}
+.tab-item {
+  display: inline-block;
+  padding: 12px 20px;
+  border-bottom: 2px solid #fff;
+  font-weight: bold;
+}
+
+/* ==========================================
+   無限スクロール・インジケーター
    ========================================== */
 .scroll-sentinel {
   display: flex;
@@ -486,13 +544,19 @@ body {
   cursor: pointer;
 }
 
-/* 画面幅が狭い場合は縦1列にスタック */
-@media (max-width: 1150px) {
+/* スマホ縦向き（幅768px未満）の時だけ1列に折り返す */
+@media (max-width: 768px) {
   .watch-layout {
-    flex-direction: column;
+    flex-direction: column !important;
+  }
+  .watch-main-column {
+    width: 100% !important;
   }
   .watch-sidebar-column {
-    width: 100%;
+    width: 100% !important;
+    position: static;
+    max-height: none;
+    overflow-y: visible;
     margin-top: 24px;
   }
 }
