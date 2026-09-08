@@ -12,7 +12,7 @@ body {
 }
 
 /* ==========================================
-   ヘッダー (YouTube Dark Header)
+   ヘッダー
    ========================================== */
 #yt-header {
   position: fixed;
@@ -26,18 +26,13 @@ body {
   justify-content: space-between;
   padding: 0 16px;
   z-index: 2000;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
+  border-bottom: 1px solid #222;
 }
 
 .logo {
   display: flex;
   align-items: center;
   text-decoration: none;
-  position: relative;
 }
 .yt-logo-icon {
   width: 93px;
@@ -50,7 +45,6 @@ body {
   margin-top: -10px;
 }
 
-/* 検索バー */
 .header-center {
   flex: 0 1 720px;
   margin: 0 20px;
@@ -132,7 +126,7 @@ body {
 }
 
 /* ==========================================
-   メインエリア（サイドバーなしフルワイド）
+   メインエリア（サイドバーなしフルスクリーン）
    ========================================== */
 #main-content {
   margin-top: 56px;
@@ -140,7 +134,7 @@ body {
   padding: 16px 24px;
 }
 
-/* チップフィルターバー */
+/* チップバー */
 .chips-bar {
   display: flex;
   gap: 12px;
@@ -155,7 +149,7 @@ body {
   background: #272727;
   color: #fff;
   border: none;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -170,13 +164,12 @@ body {
   color: #0f0f0f;
 }
 
-/* 動画グリッド（広々としたカード配置） */
+/* グリッドカード */
 .video-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 24px 16px;
 }
-
 .video-card {
   cursor: pointer;
 }
@@ -248,29 +241,29 @@ body {
 }
 
 /* ==========================================
-   超巨大シネマ再生画面 (Watch Page)
+   本物仕様：2カラム再生画面 (Watch Page)
    ========================================== */
-.watch-container {
+.watch-layout {
   display: flex;
   gap: 24px;
-  max-width: 1800px;
+  max-width: 1750px;
   margin: 0 auto;
 }
 
+/* 【左側メイン】大迫力シネマプレイヤー */
 .watch-main-column {
   flex: 1;
   min-width: 0;
 }
 
-/* プレイヤーの巨大枠（横幅いっぱい 16:9） */
 .player-outer {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
 }
 .player-outer iframe {
   width: 100%;
@@ -281,7 +274,7 @@ body {
 .video-headline {
   font-size: 20px;
   font-weight: 700;
-  margin-top: 12px;
+  margin-top: 14px;
   line-height: 1.3;
 }
 
@@ -289,7 +282,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 10px;
+  margin-top: 12px;
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -323,11 +316,7 @@ body {
   cursor: pointer;
   margin-left: 12px;
 }
-.btn-subscribe:hover {
-  background: #d9d9d9;
-}
 
-/* アクションボタン（高評価、共有、保存） */
 .action-buttons {
   display: flex;
   gap: 8px;
@@ -368,10 +357,9 @@ body {
   height: 20px;
 }
 
-/* 概要欄ボックス */
 .desc-box {
   background: #272727;
-  padding: 12px 16px;
+  padding: 14px 16px;
   border-radius: 12px;
   margin-top: 14px;
   font-size: 14px;
@@ -388,7 +376,7 @@ body {
   word-break: break-word;
 }
 
-/* コメント欄 */
+/* コメント一覧 */
 .comments-container {
   margin-top: 24px;
 }
@@ -428,10 +416,15 @@ body {
   margin-top: 6px;
 }
 
-/* 右側関連動画 */
+/* 【右側】関連動画サイドバー */
 .watch-sidebar-column {
-  width: 400px;
+  width: 402px;
   flex-shrink: 0;
+}
+.related-header-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 12px;
 }
 .related-item {
   display: flex;
@@ -468,57 +461,19 @@ body {
 }
 
 /* ==========================================
-   チャンネル画面
+   無限スクロール検知スピナー
    ========================================== */
-.channel-banner-img {
-  width: 100%;
-  height: 200px;
-  background-size: cover;
-  background-position: center;
-  border-radius: 16px;
-  background-color: #222;
-}
-.channel-info-row {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 24px 0;
-}
-.channel-big-pic {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-}
-.channel-meta-details h1 {
-  font-size: 26px;
-  margin-bottom: 4px;
-}
-.channel-meta-details p {
-  color: #aaa;
-  font-size: 14px;
-  margin-top: 4px;
-}
-.channel-nav-tabs {
-  border-bottom: 1px solid #333;
-  margin-bottom: 20px;
-}
-.tab-item {
-  display: inline-block;
-  padding: 12px 20px;
-  border-bottom: 2px solid #fff;
-  font-weight: bold;
-}
-
-/* スピナー */
-.loader-wrapper {
+.scroll-sentinel {
   display: flex;
   justify-content: center;
-  padding: 60px 0;
+  align-items: center;
+  padding: 30px 0;
+  width: 100%;
 }
-.spinner {
-  width: 44px;
-  height: 44px;
-  border: 4px solid #333;
+.sentinel-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #333;
   border-top-color: #c00;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -531,12 +486,13 @@ body {
   cursor: pointer;
 }
 
-/* レスポンシブ */
-@media (max-width: 1100px) {
-  .watch-container {
+/* 画面幅が狭い場合は縦1列にスタック */
+@media (max-width: 1150px) {
+  .watch-layout {
     flex-direction: column;
   }
   .watch-sidebar-column {
     width: 100%;
+    margin-top: 24px;
   }
 }
