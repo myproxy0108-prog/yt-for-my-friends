@@ -1,4 +1,4 @@
-const API_BASE = "https://api-yt-bynemu.myproxy0108.workers.dev"; // ← ここを書き換え
+const API_BASE = "https://api-nemu-utube.myproxy0108.workers.dev"; // ← ここを書き換え
 
 // 自動フォールバック（Worker が一時的に空を返した時の二重防壁）
 const FALLBACK_APIS = [
