@@ -1,6 +1,11 @@
 const API_BASE = "https://api-yt-bynemu.myproxy0108.workers.dev"; // ← ここを書き換え
 
-// 自動フォールバック（Worker が一時的に 0 件を返した時の二重防壁）
+// =================================================================
+// ⚙️ 設定：あなたの Cloudflare Worker URL を記述してください
+// =================================================================
+const API_BASE = "https://あなたのWorker名.workers.dev"; // ← ここを書き換え
+
+// 自動フォールバック（Worker が一時的に空を返した時の二重防壁）
 const FALLBACK_APIS = [
   "https://yewtu.be",
   "https://vid.puffyan.us",
@@ -13,12 +18,12 @@ const app = {
   currentVideoId: null,
   currentChannelTarget: null,
 
-  // 無限スクロール用 Continuation トークン保持
+  // 無限スクロール用 Continuation トークン
   feedToken: null,
   commentsToken: null,
   channelToken: null,
 
-  // 重複読み込み防止フラグ
+  // 重複リクエスト防止フラグ
   isFetchingFeed: false,
   isFetchingComments: false,
   isFetchingChannel: false,
@@ -49,17 +54,17 @@ const app = {
   },
 
   // =================================================================
-  // 【完全自動】無限スクロール（IntersectionObserver）の設定
-  // ユーザーがリスト下部に到達した瞬間に自動で次の50件を追加取得
+  // 【不発完全防止】ハイブリッド無限スクロール監視エンジン
+  // IntersectionObserver + Window Scroll イベントの二重監視
   // =================================================================
   setupInfiniteScroll() {
     const observerOptions = {
       root: null,
-      rootMargin: "600px", // 画面外600px手前で先読み開始
+      rootMargin: "800px", // 画面外800px手前で高速先読み
       threshold: 0
     };
 
-    // 1. ホーム / 検索結果の無限スクロール
+    // 1. IntersectionObserver による自動検知
     const feedSentinel = document.getElementById("feed-sentinel");
     new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && this.feedToken && !this.isFetchingFeed) {
@@ -67,7 +72,6 @@ const app = {
       }
     }, observerOptions).observe(feedSentinel);
 
-    // 2. コメントの無限スクロール
     const commentsSentinel = document.getElementById("comments-sentinel");
     new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && this.commentsToken && !this.isFetchingComments) {
@@ -75,16 +79,41 @@ const app = {
       }
     }, observerOptions).observe(commentsSentinel);
 
-    // 3. チャンネル動画の無限スクロール
     const channelSentinel = document.getElementById("channel-sentinel");
     new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && this.channelToken && !this.isFetchingChannel) {
         this.loadMoreChannelVideos();
       }
     }, observerOptions).observe(channelSentinel);
+
+    // 2. Window Scroll イベントによるバックアップ検知（すり抜けを完全防止）
+    let scrollTimeout = null;
+    window.addEventListener("scroll", () => {
+      if (scrollTimeout) return;
+      scrollTimeout = setTimeout(() => {
+        scrollTimeout = null;
+        const scrollBottom = window.innerHeight + window.scrollY;
+        const docHeight = document.documentElement.scrollHeight;
+
+        // ページ最下部から 800px 手前に達した瞬間に追加読み込みを実行
+        if (scrollBottom >= docHeight - 800) {
+          const viewFeed = document.getElementById("view-feed");
+          const viewWatch = document.getElementById("view-watch");
+          const viewChannel = document.getElementById("view-channel");
+
+          if (viewFeed.style.display !== "none" && this.feedToken && !this.isFetchingFeed) {
+            this.loadMoreFeed();
+          } else if (viewWatch.style.display !== "none" && this.commentsToken && !this.isFetchingComments) {
+            this.loadMoreComments();
+          } else if (viewChannel.style.display !== "none" && this.channelToken && !this.isFetchingChannel) {
+            this.loadMoreChannelVideos();
+          }
+        }
+      }, 150);
+    }, { passive: true });
   },
 
-  // 堅牢 API 通信
+  // API 通信
   async fetchApi(endpointPath) {
     try {
       const res = await fetch(`${API_BASE}${endpointPath}`);
@@ -141,7 +170,7 @@ const app = {
   },
 
   // =================================================================
-  // 1. ホーム / 検索結果（初回 ＆ 無限スクロール追加）
+  // 1. ホーム / 検索一覧（初回 ＆ 無限追加読み込み）
   // =================================================================
   async loadHomeView() {
     this.switchView("view-feed");
@@ -219,15 +248,15 @@ const app = {
 
   // =================================================================
   // 2. 動画再生画面 (Watch Page)
-  // 左側：大迫力プレイヤー + コメント（無限スクロール）
-  // 右側：関連動画（縦並び・確実表示）
+  // 【左側】巨大プレイヤー + コメント（無限スクロール）
+  // 【右側】関連動画（縦並びで右側に固定）
   // =================================================================
   async loadWatchView(videoId) {
     this.switchView("view-watch");
     this.currentVideoId = videoId;
     this.commentsToken = null;
 
-    // 大迫力 youtube-nocookie プレイヤー
+    // プレイヤーの読み込み
     const player = document.getElementById("nocookie-player");
     player.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`;
 
@@ -239,6 +268,7 @@ const app = {
     document.getElementById("comments-sentinel").style.display = "flex";
 
     try {
+      // 1. 動画詳細 & 関連動画の取得
       const data = await this.fetchApi(`/api/v1/videos/${videoId}`);
 
       document.getElementById("watch-title").textContent = data.title || "";
@@ -254,7 +284,7 @@ const app = {
       document.getElementById("watch-date").textContent = data.publishedText || "";
       document.getElementById("watch-description").textContent = data.description || "説明はありません。";
 
-      // 【右側】関連動画の描画（確実に取得・表示）
+      // 【右側】関連動画の描画（右側に固定表示）
       let relVideos = data.recommendedVideos || [];
       if (relVideos.length === 0) {
         const fallbackSearch = await this.fetchApi(`/api/v1/search?q=${encodeURIComponent(data.author || "人気動画")}&limit=20`);
@@ -345,7 +375,7 @@ const app = {
   },
 
   // =================================================================
-  // 3. チャンネル画面（初回 ＆ 無限スクロール追加）
+  // 3. チャンネル画面（初回 ＆ 無限追加読み込み）
   // =================================================================
   async loadChannelView(channelTarget) {
     this.switchView("view-channel");
@@ -399,7 +429,6 @@ const app = {
     }
   },
 
-  // チャンネルスマートナビゲーション
   smartChannelNav(target) {
     if (target.startsWith("UC") || target.startsWith("@")) {
       this.navigate(`/?channel=${encodeURIComponent(target)}`);
