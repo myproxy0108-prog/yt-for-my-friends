@@ -192,195 +192,138 @@ async function callInnerTube(endpoint, payload) {
 
 async function getInitialShortId() {
   try {
-    const searchData = await callInnerTube("search", { query: "#shorts" });
-    let foundId = null;
-    function findFirstShort(obj) {
-      if (!obj || typeof obj !== "object" || foundId) return;
-      if (obj.reelItemRenderer && obj.reelItemRenderer.videoId) {
-        foundId = obj.reelItemRenderer.videoId;
-        return;
-      }
-      if (Array.isArray(obj)) {
-        obj.forEach(findFirstShort);
-      } else {
-        Object.keys(obj).forEach(k => {
-          if (k !== "trackingParams") findFirstShort(obj[k]);
-        });
+    const res = await fetch("https://www.youtube.com/shorts", {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+      },
+      redirect: "manual"
+    });
+    const loc = res.headers.get("Location");
+    if (loc && loc.includes("/shorts/")) {
+      const parts = loc.split("/shorts/")[1].split("?")[0];
+      if (parts) {
+        return parts;
       }
     }
-    findFirstShort(searchData);
-    if (foundId) return foundId;
   } catch (e) {}
-
   return "9f1rHt0W_Ak";
 }
 
-// 高評価数（いいね数）を確実に抽出するヘルパー関数
-function extractLikesCount(data) {
-  let likes = "";
-  function findLikes(o) {
-    if (!o || typeof o !== "object" || likes) return;
-
-    // 1. segmentedLikeDislikeButtonViewModel / toggleButtonViewModel
-    if (o.segmentedLikeDislikeButtonViewModel || o.likeButtonViewModel) {
-      const btn = o.segmentedLikeDislikeButtonViewModel?.likeButtonViewModel?.likeButtonViewModel || o.likeButtonViewModel;
-      const txt = btn?.toggleButtonViewModel?.toggleButtonViewModel?.defaultButtonViewModel?.buttonViewModel?.title || "";
-      if (txt) {
-        likes = txt;
-        return;
-      }
-    }
-
-    // 2. toggleButtonRenderer
-    if (o.toggleButtonRenderer && o.toggleButtonRenderer.defaultText) {
-      const t = o.toggleButtonRenderer.defaultText;
-      const txt = t.simpleText || t.runs?.map(r => r.text).join("") || "";
-      if (txt && !txt.includes("高評価") && !txt.includes("Like")) {
-        likes = txt;
-        return;
-      }
-      const aria = o.toggleButtonRenderer.accessibilityData?.accessibilityData?.label || o.toggleButtonRenderer.defaultTooltip || "";
-      if (aria) {
-        const m = aria.match(/([0-9.,]+(\s*[万億kmKM])?)/);
-        if (m) {
-          likes = m[1];
-          return;
-        }
-      }
-    }
-
-    // 3. factoid (高評価数の指標)
-    if (o.factoidRenderer) {
-      const label = o.factoidRenderer.accessibilityText?.label || o.factoidRenderer.accessibilityText || "";
-      if (label.includes("高評価") || label.toLowerCase().includes("like")) {
-        const val = o.factoidRenderer.value?.simpleText || "";
-        if (val) {
-          likes = val;
-          return;
-        }
-      }
-    }
-
-    // 4. reelPlayerOverlayRenderer
-    if (o.reelPlayerOverlayRenderer?.likeButton) {
-      const lb = o.reelPlayerOverlayRenderer.likeButton;
-      const txt = lb.likeButtonRenderer?.likeCountText?.simpleText || lb.likeButtonRenderer?.likeCountText?.runs?.map(r => r.text).join("") || "";
-      if (txt) {
-        likes = txt;
-        return;
-      }
-    }
-
-    if (Array.isArray(o)) {
-      o.forEach(findLikes);
-    } else {
-      Object.keys(o).forEach(k => {
-        if (k !== "trackingParams") findLikes(o[k]);
-      });
-    }
-  }
-  findLikes(data);
-  return likes || "高評価";
-}
-
-// ショート動画を開く（タイトル・高評価・次動画シーケンスを一括生成）
-async function fetchShortInfoAndSequence(videoId) {
-  // 1. player API と next API からタイトル・チャンネル・本物の高評価数を完全取得
-  let title = "";
-  let channelAuthor = "";
-  let channelId = "";
-  let authorThumbnails = [];
-  let likeCount = "高評価";
-  let commentCount = "コメント";
-
+// 動画を開いた時に「本家が指定する次の動画リスト」を純粋に取得
+async function fetchShortInfoAndSequence(videoId, incomingSeqParams = null) {
+  let itemWatchData = null;
   try {
-    // player API からタイトルとチャンネルを確実に取得（空文字を100%防止）
-    const playerData = await callInnerTube("player", { videoId: videoId });
-    if (playerData.videoDetails) {
-      title = playerData.videoDetails.title || "";
-      channelAuthor = playerData.videoDetails.author || "";
-      channelId = playerData.videoDetails.channelId || "";
-    }
+    itemWatchData = await callInnerTube("reel/reel_item_watch", {
+      playerRequest: { videoId: videoId },
+      disablePlayerResponse: false
+    });
   } catch (e) {}
 
-  let nextData = null;
-  try {
-    // next API から高評価数とアイコンを取得
-    nextData = await callInnerTube("next", { videoId: videoId });
-    likeCount = extractLikesCount(nextData);
+  let sequenceParams = incomingSeqParams || itemWatchData?.sequenceParams || null;
 
-    // チャンネルアイコンの抽出
-    function findAvatar(o) {
-      if (!o || typeof o !== "object" || authorThumbnails.length > 0) return;
-      if (o.videoSecondaryInfoRenderer?.owner?.videoOwnerRenderer?.thumbnail?.thumbnails) {
-        authorThumbnails = o.videoSecondaryInfoRenderer.owner.videoOwnerRenderer.thumbnail.thumbnails.map(t => ({
+  const currentShort = {
+    id: videoId,
+    title: "",
+    author: "",
+    authorId: "",
+    authorUrl: "",
+    authorThumbnails: [],
+    likeCount: "高評価",
+    commentCount: "コメント",
+    embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=0&loop=1&playlist=${videoId}`,
+    videoThumbnails: makeShortsThumbnails(videoId)
+  };
+
+  if (itemWatchData) {
+    const overlay = itemWatchData.overlay?.reelPlayerOverlayRenderer;
+    if (overlay) {
+      const header = overlay.reelPlayerHeaderSupportedRenderers?.reelPlayerHeaderRenderer;
+      if (header) {
+        currentShort.title = header.reelTitleText?.runs?.map(r => r.text).join("") || header.reelTitleText?.simpleText || "";
+        currentShort.author = header.channelTitleText?.runs?.map(r => r.text).join("") || header.channelTitleText?.simpleText || "";
+        const channelEndpoint = header.channelNavigationEndpoint?.browseEndpoint;
+        if (channelEndpoint?.browseId) {
+          currentShort.authorId = channelEndpoint.browseId;
+          currentShort.authorUrl = `/channel/${channelEndpoint.browseId}`;
+        }
+        currentShort.authorThumbnails = (header.avatar?.thumbnails || []).map(t => ({
           url: fixUrl(t.url),
           width: t.width || 48,
           height: t.height || 48
         }));
-        return;
       }
-      if (Array.isArray(o)) o.forEach(findAvatar);
-      else Object.keys(o).forEach(k => { if (k !== "trackingParams") findAvatar(o[k]); });
+      currentShort.likeCount = overlay.likeButton?.likeButtonRenderer?.likeCountText?.simpleText || "高評価";
+      currentShort.commentCount = overlay.commentButton?.commentButtonRenderer?.commentCount?.simpleText || "コメント";
     }
-    findAvatar(nextData);
+  }
 
-    // タイトルがまだ無ければ補完
-    if (!title) {
-      title = nextData.contents?.twoColumnWatchNextResults?.results?.results?.contents?.[0]?.videoPrimaryInfoRenderer?.title?.runs?.map(r => r.text).join("") || "Shorts";
-    }
-  } catch (e) {}
+  // タイトル等が空の場合は watch/shorts HTML からフォールバック
+  if (!currentShort.title) {
+    try {
+      const htmlRes = await fetch(`https://www.youtube.com/shorts/${videoId}?hl=ja&gl=JP`, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Accept-Language": "ja,en-US;q=0.9,en;q=0.8"
+        }
+      });
+      if (htmlRes.ok) {
+        const html = await htmlRes.text();
+        const marker = "ytInitialPlayerResponse = ";
+        const idx = html.indexOf(marker);
+        if (idx !== -1) {
+          const slice = html.slice(idx + marker.length, idx + marker.length + 50000);
+          const endIdx = slice.indexOf(";</script>");
+          if (endIdx !== -1) {
+            const parsed = JSON.parse(slice.slice(0, endIdx));
+            const details = parsed.videoDetails;
+            if (details) {
+              currentShort.title = details.title || currentShort.title;
+              currentShort.author = details.author || currentShort.author;
+              currentShort.authorId = details.channelId || currentShort.authorId;
+              currentShort.authorUrl = `/channel/${details.channelId}`;
+            }
+          }
+        }
+        if (!sequenceParams) {
+          const seqMatch = html.match(/"sequenceParams"\s*:\s*"([^"]+)"/);
+          if (seqMatch) {
+            sequenceParams = seqMatch[1];
+          }
+        }
+      }
+    } catch (e) {}
+  }
 
-  // 【自動再生対応】autoplay=1&mute=1 をセット（ブラウザの自動再生ブロックを完全に回避）
-  const autoplayEmbedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&enablejsapi=1`;
-
-  const currentShort = {
-    id: videoId,
-    title: title || "Shorts",
-    author: channelAuthor || "YouTube Creator",
-    authorId: channelId,
-    authorUrl: channelId ? `/channel/${channelId}` : "",
-    authorThumbnails: authorThumbnails.length > 0 ? authorThumbnails : [{ url: "https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png", width: 48, height: 48 }],
-    likeCount: likeCount,
-    commentCount: commentCount,
-    embedUrl: autoplayEmbedUrl,
-    videoThumbnails: makeShortsThumbnails(videoId)
-  };
-
-  // 2. スワイプ待機シーケンス（YouTube本家の次の動画たち）の取得
+  // 【本家シーケンス取得】YouTubeが指定する次の動画たちを取得
   let sequenceList = [];
-  let sequenceParams = null;
+  let nextSequenceParams = null;
 
-  try {
-    const itemWatch = await callInnerTube("reel/reel_item_watch", {
-      playerRequest: { videoId: videoId },
-      disablePlayerResponse: false
-    });
-    sequenceParams = itemWatch?.sequenceParams || null;
-    if (sequenceParams) {
+  if (sequenceParams) {
+    try {
       const seqData = await fetchSequenceEntries(sequenceParams);
       sequenceList = seqData.sequence.filter(v => v.id !== videoId);
-      sequenceParams = seqData.nextSequenceParams;
-    }
-  } catch (e) {}
+      nextSequenceParams = seqData.nextSequenceParams;
+    } catch (e) {}
+  }
 
-  // 万が一シーケンスが取れなかった場合の確実な補完
+  // 万が一空の場合のみ #shorts から補完（自前検索は行わない）
   if (sequenceList.length === 0) {
     try {
-      const searchShorts = await callInnerTube("search", { query: "#shorts" });
+      const fallbackSearch = await callInnerTube("search", { query: "#shorts" });
       function grabShorts(obj) {
-        if (!obj || typeof obj !== "object" || sequenceList.length >= 15) return;
-        const vId = obj.reelItemRenderer?.videoId || obj.shortsLockupViewModel?.entityId?.replace("shorts-shelf-item-", "");
-        if (vId && typeof vId === "string" && vId.length === 11 && vId !== videoId && !sequenceList.some(x => x.id === vId)) {
-          const headline = obj.reelItemRenderer?.headline?.simpleText || obj.shortsLockupViewModel?.overlayMetadata?.primaryText?.content || "Shorts";
-          const chName = obj.reelItemRenderer?.channelTitleText?.simpleText || "";
-          sequenceList.push({
-            id: vId,
-            title: headline,
-            author: chName,
-            thumbnail: `https://i.ytimg.com/vi/${vId}/oardefault.jpg`,
-            embedUrl: `https://www.youtube-nocookie.com/embed/${vId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${vId}&enablejsapi=1`
-          });
+        if (!obj || typeof obj !== "object" || sequenceList.length >= 10) return;
+        if (obj.reelItemRenderer || obj.shortsLockupViewModel) {
+          const s = obj.reelItemRenderer || obj.shortsLockupViewModel;
+          const sId = s.videoId || s.entityId?.replace("shorts-shelf-item-", "") || s.onTap?.innertubeCommand?.reelWatchEndpoint?.videoId;
+          if (sId && sId !== videoId && !sequenceList.some(x => x.id === sId)) {
+            sequenceList.push({
+              id: sId,
+              title: s.headline?.simpleText || s.overlayMetadata?.primaryText?.content || "Shorts",
+              author: s.channelTitleText?.simpleText || "",
+              thumbnail: `https://i.ytimg.com/vi/${sId}/oardefault.jpg`,
+              embedUrl: `https://www.youtube-nocookie.com/embed/${sId}?autoplay=1&controls=0&loop=1&playlist=${sId}`
+            });
+          }
         }
         if (Array.isArray(obj)) {
           obj.forEach(grabShorts);
@@ -390,7 +333,7 @@ async function fetchShortInfoAndSequence(videoId) {
           });
         }
       }
-      grabShorts(searchShorts);
+      grabShorts(fallbackSearch);
     } catch (e) {}
   }
 
@@ -398,12 +341,13 @@ async function fetchShortInfoAndSequence(videoId) {
     status: "success",
     type: "shorts",
     current: currentShort,
-    sequence: sequenceList,
-    sequenceParams: sequenceParams || null,
+    sequence: sequenceList, // 本家YouTubeが指定する次の動画リストそのまま
+    sequenceParams: nextSequenceParams || sequenceParams,
     hasMore: sequenceList.length > 0
   };
 }
 
+// 本家の reel_watch_sequence をそのまま解析
 async function fetchSequenceEntries(sequenceParams) {
   const seqRes = await callInnerTube("reel/reel_watch_sequence", {
     sequenceParams: sequenceParams
@@ -430,7 +374,7 @@ async function fetchSequenceEntries(sequenceParams) {
           title: title,
           author: author,
           thumbnail: fixUrl(thumb),
-          embedUrl: `https://www.youtube-nocookie.com/embed/${vId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${vId}&enablejsapi=1`
+          embedUrl: `https://www.youtube-nocookie.com/embed/${vId}?autoplay=1&controls=0&loop=1&playlist=${vId}`
         });
 
         if (ep.sequenceParams) {
@@ -465,7 +409,6 @@ function makeShortsThumbnails(videoId) {
     { quality: "hq", url: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`, width: 480, height: 360 }
   ];
 }
-
 // =======================================================
 // ★ 【完全改修】検索 (/api/v1/search?q=...)
 // 通常動画 (type: video) と ショート動画 (type: short) を両方漏れなく抽出
