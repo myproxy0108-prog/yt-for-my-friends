@@ -2,6 +2,7 @@
 // ⚙️ 設定：あなたの Cloudflare Worker URL を記述してください
 // =================================================================
 const API_BASE = "https://api-yt.myproxy0108.workers.dev"; // ← ここを書き換え
+
 const FALLBACK_APIS = [
   "https://yewtu.be",
   "https://vid.puffyan.us",
@@ -19,19 +20,22 @@ const app = {
   commentsToken: null,
   channelToken: null,
 
+  // ★【要件】3の倍数で余った動画を保持するバッファ（検索消失バグ完全解決）
+  videoBuffer: [],
+
   isFetchingFeed: false,
   isFetchingComments: false,
   isFetchingChannel: false,
 
-  // ★【要件1】ショート興味判定 ＆ 動的キュー管理
-  rootShortId: null,             // 最初にクリックした起点ショート
-  shortsQueue: [],               // ショート動画キュー
+  // ショート動画管理
+  rootShortId: null,
+  shortsQueue: [],
   currentShortIndex: 0,
-  shortStartTime: 0,             // 現在のショート視聴開始時刻
-  userInteractedWithCurrent: false, // いいね/コメントのアクション有無
+  shortStartTime: 0,
+  userInteractedWithCurrent: false,
   isFetchingDynamicShorts: false,
 
-  // いいね状態管理
+  // いいね管理
   isMainLiked: false,
   isMainDisliked: false,
   mainLikesOriginal: 0,
@@ -126,7 +130,7 @@ const app = {
   },
 
   // =================================================================
-  // ★ 【要件1】ショート動画：ユーザー興味判定 ＆ 動的次動画ローテーション
+  // ★ ショート動画：興味判定アルゴリズム ＆ 動的リフレッシュ
   // =================================================================
   loadInitialShorts() {
     this.navigate("/?shorts=true");
@@ -134,7 +138,7 @@ const app = {
 
   async loadShortsView(shortId) {
     this.switchView("view-shorts");
-    this.rootShortId = shortId; // 起点ショートを記憶（フォールバック精査用）
+    this.rootShortId = shortId;
     this.shortsQueue = [];
     this.currentShortIndex = 0;
     this.shortStartTime = Date.now();
@@ -156,7 +160,6 @@ const app = {
         if (!this.rootShortId) this.rootShortId = data.current.id;
         this.shortsQueue.push(data.current);
 
-        // 次の 3 本をキューにストック
         if (data.sequence && data.sequence.length > 0) {
           data.sequence.forEach(s => {
             if (!this.shortsQueue.some(x => x.id === s.id)) {
@@ -164,7 +167,6 @@ const app = {
             }
           });
         }
-
         this.renderCurrentShort();
       } else {
         throw new Error("ショートデータが空です");
@@ -199,37 +201,30 @@ const app = {
     window.history.replaceState({}, "", `/?short=${item.id}`);
   },
 
-  // 次のショート動画へ進む（興味判定アルゴリズム作動）
   async nextShort() {
     const currentItem = this.shortsQueue[this.currentShortIndex];
     const watchDuration = Date.now() - this.shortStartTime;
 
-    // 【要件1】「ユーザーがその動画に興味があるか」の判定
-    // 3.5秒以上じっくり見た、または「いいね」「コメント」を押した場合は「興味あり」
+    // 興味判定: 3.5秒以上視聴、またはアクションあり
     const isInterested = watchDuration >= 3500 || this.userInteractedWithCurrent;
 
-    // ①【興味があるなら新しく取得】➔ その動画に関連する新しい3本を即時取得してキューに優先挿入！
     if (isInterested && currentItem && !this.isFetchingDynamicShorts) {
       this.fetchAndInjectRelatedShorts(currentItem.id);
     }
 
-    // ②【興味がないなら手持ちの3つを順に流す】
     if (this.currentShortIndex < this.shortsQueue.length - 1) {
       this.currentShortIndex++;
       this.renderCurrentShort();
     } else {
-      // ③【それらが無理なら、最初にユーザーがクリックしたものをもっかい精査】
       await this.recoverFromRootShort();
     }
   },
 
-  // 興味がある場合の深掘り新取得
   async fetchAndInjectRelatedShorts(targetId) {
     this.isFetchingDynamicShorts = true;
     try {
       const data = await this.fetchApi(`/api/v1/shorts/${targetId}`);
       if (data.sequence && data.sequence.length > 0) {
-        // 次の再生位置（currentShortIndex + 1）の直後に新しい3本を割り込み挿入！
         const newOnes = data.sequence.filter(s => !this.shortsQueue.some(x => x.id === s.id));
         if (newOnes.length > 0) {
           this.shortsQueue.splice(this.currentShortIndex + 1, 0, ...newOnes);
@@ -241,7 +236,6 @@ const app = {
     }
   },
 
-  // キュー切れ時の起点ショート再精査フォールバック
   async recoverFromRootShort() {
     if (!this.rootShortId) return;
     try {
@@ -276,11 +270,8 @@ const app = {
       if (wheelTimeout) return;
       wheelTimeout = setTimeout(() => { wheelTimeout = null; }, 300);
 
-      if (e.deltaY > 15) {
-        this.nextShort();
-      } else if (e.deltaY < -15) {
-        this.prevShort();
-      }
+      if (e.deltaY > 15) this.nextShort();
+      else if (e.deltaY < -15) this.prevShort();
     }, { passive: false });
 
     area.addEventListener("touchstart", (e) => {
@@ -288,31 +279,22 @@ const app = {
     }, { passive: true });
 
     area.addEventListener("touchend", (e) => {
-      const touchEndY = e.changedTouches[0].clientY;
-      const diffY = this.touchStartY - touchEndY;
-      if (diffY > 35) {
-        this.nextShort(); // 下から上へスワイプ ➔ 次へ
-      } else if (diffY < -35) {
-        this.prevShort(); // 上から下へスワイプ ➔ 前へ
-      }
+      const diffY = this.touchStartY - e.changedTouches[0].clientY;
+      if (diffY > 35) this.nextShort();
+      else if (diffY < -35) this.prevShort();
     }, { passive: true });
 
     window.addEventListener("keydown", (e) => {
       const viewShorts = document.getElementById("view-shorts");
       if (viewShorts && viewShorts.style.display !== "none") {
-        if (e.key === "ArrowDown" || e.key === "PageDown") {
-          e.preventDefault();
-          this.nextShort();
-        } else if (e.key === "ArrowUp" || e.key === "PageUp") {
-          e.preventDefault();
-          this.prevShort();
-        }
+        if (e.key === "ArrowDown" || e.key === "PageDown") { e.preventDefault(); this.nextShort(); }
+        else if (e.key === "ArrowUp" || e.key === "PageUp") { e.preventDefault(); this.prevShort(); }
       }
     });
   },
 
   async toggleShortsComments() {
-    this.userInteractedWithCurrent = true; // コメントを開いた ➔ 興味ありと判定
+    this.userInteractedWithCurrent = true; // コメント開＝興味あり
     const drawer = document.getElementById("shorts-comment-drawer");
     const list = document.getElementById("shorts-comments-list");
     const current = this.shortsQueue[this.currentShortIndex];
@@ -334,7 +316,7 @@ const app = {
       }
       list.innerHTML = data.comments.map(c => `
         <div style="display:flex;gap:10px;margin-bottom:12px;">
-          <img src="${c.authorThumbnails?.[0]?.url || 'https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png'}" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;" alt="">
+          <img src="${c.authorThumbnails?.[0]?.url || 'https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png'}" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;">
           <div style="font-size:12px;">
             <b>${this.escape(c.author)}</b> <span style="color:#aaa;">${c.publishedText}</span>
             <div style="margin-top:2px;font-size:13px;line-height:1.3;">${this.escape(c.content)}</div>
@@ -348,7 +330,7 @@ const app = {
   },
 
   // =================================================================
-  // 高評価・低評価インタラクション
+  // いいね インタラクション
   // =================================================================
   toggleLike(target) {
     if (target === "main") {
@@ -367,7 +349,7 @@ const app = {
         textEl.textContent = this.mainLikesOriginal ? this.mainLikesOriginal.toLocaleString() : "高評価";
       }
     } else if (target === "shorts") {
-      this.userInteractedWithCurrent = true; // 高評価を押した ➔ 興味ありと判定！
+      this.userInteractedWithCurrent = true;
       const circle = document.getElementById("shorts-like-circle");
       const dislikeCircle = document.getElementById("shorts-dislike-circle");
 
@@ -480,6 +462,7 @@ const app = {
     this.switchView("view-feed");
     this.currentQuery = "おすすめ";
     this.feedToken = null;
+    this.videoBuffer = []; // バッファクリア
     document.getElementById("video-grid").innerHTML = "";
     document.getElementById("feed-sentinel").style.display = "flex";
     await this.loadMoreFeed();
@@ -489,6 +472,7 @@ const app = {
     this.switchView("view-feed");
     this.currentQuery = query;
     this.feedToken = null;
+    this.videoBuffer = []; // バッファクリア
     document.getElementById("video-grid").innerHTML = "";
     document.getElementById("feed-sentinel").style.display = "flex";
     await this.loadMoreFeed();
@@ -505,14 +489,19 @@ const app = {
         : `/api/v1/search?q=${encodeURIComponent(this.currentQuery)}&limit=30`;
 
       const data = await this.fetchApi(endpoint);
-      const videos = Array.isArray(data) ? data : (data.results || []);
-      this.feedToken = data.continuation || null;
+      const newVideos = Array.isArray(data) ? data : (data.results || []);
+      
+      this.feedToken = data.continuation || (Array.isArray(data) ? data.continuation : null) || null;
 
-      // 【要件2】通常動画をきっちり3の倍数で揃えて描画
-      this.renderFeedWithShortsShelf(videos, grid);
+      // 【要件】バッファに入っていた「前回余った動画」を先頭に合体させて表示
+      const allVideos = [...this.videoBuffer, ...newVideos];
+      this.videoBuffer = [];
+
+      this.renderFeedWithShortsShelf(allVideos, grid);
 
       if (!this.feedToken) document.getElementById("feed-sentinel").style.display = "none";
     } catch (err) {
+      document.getElementById("video-grid").insertAdjacentHTML("beforeend", `<p style="color:#ff4e4e;padding:20px;grid-column:1/-1;">検索エラー: ${err.message}</p>`);
       document.getElementById("feed-sentinel").style.display = "none";
     } finally {
       this.isFetchingFeed = false;
@@ -520,10 +509,14 @@ const app = {
   },
 
   // =================================================================
-  // 【要件2】通常動画を「3の倍数」で揃え、空白・歯抜けを完全排除
+  // ★ 【完全版】通常動画を「3の倍数」で揃え、余りをバッファに保存
   // =================================================================
   renderFeedWithShortsShelf(videos, container) {
-    if (!videos || videos.length === 0) return;
+    if (!videos || videos.length === 0) {
+      // 結果が0件でバッファも空なら終了
+      if (!this.feedToken) container.insertAdjacentHTML("beforeend", "<p style='padding:20px;grid-column:1/-1;'>動画が見つかりませんでした。</p>");
+      return;
+    }
 
     const normalVideos = [];
     const shortVideos = [];
@@ -537,18 +530,15 @@ const app = {
       }
     });
 
-    // ★【3の倍数処理】ショート棚の上に置く通常動画を「必ず3の倍数（3本または6本）」にする★
-    let topNormalCount = 0;
-    if (normalVideos.length >= 6) {
-      topNormalCount = 6; // きっちり2行分 (2×3=6)
-    } else if (normalVideos.length >= 3) {
-      topNormalCount = 3; // きっちり1行分 (1×3=3)
-    }
+    // 上段：ショート棚の上に置く通常動画を「必ず3の倍数（3本または6本）」にする
+    let topCount = 0;
+    if (normalVideos.length >= 6) topCount = 6;
+    else if (normalVideos.length >= 3) topCount = 3;
 
-    const firstBatch = normalVideos.slice(0, topNormalCount);
+    const firstBatch = normalVideos.slice(0, topCount);
     let html = firstBatch.map(v => this.buildVideoCardHtml(v)).join("");
 
-    // ショート棚（横1列スクロール）
+    // 中央：ショート棚（横スクロール）
     if (shortVideos.length > 0) {
       html += `
         <div class="shorts-shelf-container">
@@ -557,23 +547,52 @@ const app = {
             <h2>ショート</h2>
           </div>
           <div class="shorts-shelf-scroll-row">
-            ${shortVideos.slice(0, 8).map(s => this.buildShortShelfCardHtml(s)).join("")}
+            ${shortVideos.slice(0, 10).map(s => this.buildShortShelfCardHtml(s)).join("")}
           </div>
         </div>
       `;
     }
 
-    // ★ショート棚の下に置く通常動画も、きっちり3の倍数で切り揃えて描画（余白歯抜けをゼロにする）★
-    const remainingNormals = normalVideos.slice(topNormalCount);
-    const bottomMultipleOf3 = Math.floor(remainingNormals.length / 3) * 3;
-    const secondBatch = bottomMultipleOf3 > 0 ? remainingNormals.slice(0, bottomMultipleOf3) : remainingNormals;
+    // 下段：ショート棚の下に置く通常動画も、きっちり3の倍数で切り揃える
+    const remainingNormals = normalVideos.slice(topCount);
+    
+    let bottomCount = remainingNormals.length;
+    if (this.feedToken) {
+      // 次のページがある場合は、余りを捨てて3の倍数にする
+      bottomCount = Math.floor(remainingNormals.length / 3) * 3;
+    }
 
+    const secondBatch = remainingNormals.slice(0, bottomCount);
     html += secondBatch.map(v => this.buildVideoCardHtml(v)).join("");
+
+    // ★【重要】余った動画（1〜2本）は消去せずバッファに保存し、次回の読み込み先頭に回す！
+    this.videoBuffer = remainingNormals.slice(bottomCount);
 
     container.insertAdjacentHTML("beforeend", html);
   },
 
   buildVideoCardHtml(v) {
+    // プレイリストの場合の専用カード
+    if (v.type === "playlist") {
+      const pId = v.playlistId || v.id;
+      const thumb = v.thumbnail || "https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png";
+      return `
+        <div class="video-card" onclick="app.navigate('/?playlist=${pId}')">
+          <div class="thumb-wrap">
+            <img src="${thumb}" loading="lazy" alt="">
+            <span class="duration-label" style="background:rgba(0,0,0,0.9);">≡ ${v.videoCount || 0} 本</span>
+          </div>
+          <div class="card-details">
+            <div class="meta-right">
+              <div class="v-title" title="${this.escape(v.title)}">🗂 ${this.escape(v.title)}</div>
+              <div class="v-channel">${this.escape(v.author)}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 通常動画カード
     const thumb = v.videoThumbnails?.[0]?.url || v.thumbnail || `https://i.ytimg.com/vi/${v.videoId || v.id}/hqdefault.jpg`;
     const duration = v.lengthSeconds ? this.formatTime(v.lengthSeconds) : (v.duration || "");
     const author = v.author || v.channel?.name || "YouTube Creator";
@@ -743,8 +762,7 @@ const app = {
       this.channelToken = data.continuation || null;
       const videos = data.latestVideos || [];
       
-      // 3の倍数で切り揃えて描画
-      const count = Math.floor(videos.length / 3) * 3 || videos.length;
+      const count = this.channelToken ? Math.floor(videos.length / 3) * 3 : videos.length;
       const html = videos.slice(0, count).map(v => this.buildVideoCardHtml(v)).join("");
       grid.insertAdjacentHTML("beforeend", html);
 
@@ -763,7 +781,7 @@ const app = {
       this.channelToken = data.continuation || null;
       const videos = data.latestVideos || [];
       
-      const count = Math.floor(videos.length / 3) * 3 || videos.length;
+      const count = this.channelToken ? Math.floor(videos.length / 3) * 3 : videos.length;
       const html = videos.slice(0, count).map(v => this.buildVideoCardHtml(v)).join("");
       grid.insertAdjacentHTML("beforeend", html);
       
@@ -799,4 +817,6 @@ const app = {
   }
 };
 
+// 【最重要】グローバルスコープへのエクスポート（HTML側からの onclick 呼び出しを保証）
+window.app = app;
 document.addEventListener("DOMContentLoaded", () => app.init());
