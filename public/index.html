@@ -15,7 +15,7 @@
         <svg class="yt-logo-icon" viewBox="0 0 130 24">
           <path fill="#FF0000" d="M27.973,3.104c-1.164-0.435-9.378-0.435-9.378-0.435s-8.214,0-9.378,0.435C8.053,3.539,7.185,4.407,6.75,5.571 C6.315,6.735,6.315,9.15,6.315,9.15s0,2.415,0.435,3.579c0.435,1.164,1.303,2.032,2.467,2.467c1.164,0.435,9.378,0.435,9.378,0.435 s8.214,0,9.378-0.435c1.164-0.435,2.032-1.303,2.467-2.467c0.435-1.164,0.435-3.579,0.435-3.579s0-2.415-0.435-3.579 C30.005,4.407,29.137,3.539,27.973,3.104z"/>
           <polygon fill="#FFFFFF" points="16.5,12.5 22.5,9.15 16.5,5.8"/>
-          <text x="35" y="17" class="logo-text" font-family="'YouTube Sans', Roboto, sans-serif" font-weight="700" font-size="16.5" letter-spacing="-0.4px">YouTube</text>
+          <text x="35" y="17" fill="#FFFFFF" font-family="'YouTube Sans', Roboto, sans-serif" font-weight="700" font-size="16.5" letter-spacing="-0.4px">YouTube</text>
         </svg>
         <span class="country-code">JP</span>
       </a>
@@ -37,14 +37,8 @@
       </form>
     </div>
 
-    <!-- 右側アクション（テーマ切替ボタン追加） -->
+    <!-- 右側アクション -->
     <div class="header-right">
-      <!-- ★ 白黒テーマ切替ボタン ★ -->
-      <button class="theme-toggle-btn pointer" onclick="app.toggleTheme()" title="ダーク/ライトモード切り替え">
-        <svg id="theme-icon-dark" viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
-        <svg id="theme-icon-light" viewBox="0 0 24 24" width="22" height="22" style="display:none;"><path fill="currentColor" d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
-      </button>
-
       <div class="user-avatar">
         <img src="https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png" alt="User">
       </div>
@@ -67,17 +61,18 @@
         <button class="chip" onclick="app.search('VTuber')">VTuber</button>
       </div>
 
-      <!-- 動画配置エリア（ホーム時はグリッド、検索時は横長リスト） -->
-      <div id="video-feed-container"></div>
+      <div id="video-grid" class="video-grid"></div>
       
+      <!-- 無限スクロール検知スピナー -->
       <div id="feed-sentinel" class="scroll-sentinel">
         <div class="sentinel-spinner"></div>
       </div>
     </div>
 
-    <!-- 2. 通常再生 (Watch) ビュー：CSS Grid 左右2カラム固定 -->
+    <!-- 2. 通常再生 (Watch) ビュー：左右2カラム固定 -->
     <div id="view-watch" class="view" style="display:none;">
       <div class="watch-layout">
+        
         <div class="watch-main-column">
           <div class="player-outer">
             <iframe id="nocookie-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
@@ -106,16 +101,8 @@
                   <svg viewBox="0 0 24 24" class="dislike-icon"><path fill="currentColor" d="M17 4h-4l-1-1H2.57c-1.06 0-1.98.72-2.19 1.77L-.99 11.77C-1.26 12.95-.18 14 1.23 14h4.23l-1.52 4.94C3.62 19.97 4.46 21 5.62 21c.58 0 1.14-.24 1.52-.65L13 14h4V4zm-6 8l-5.34 5.74c-.12.13-.3.21-.48.21-.36 0-.66-.3-.66-.66l1.64-5.33H1.23c-.45 0-.8-.41-.74-.86l1.37-7c.07-.35.37-.59.72-.59H11.41l.6 1.41-.02 7.18zM15 12h2V6h-2v6z"/></svg>
                 </button>
               </div>
-
-              <button class="action-btn">
-                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15 5.63 20.66 12 15 18.37V14h-1c-3.96 0-7.14 1-9.75 3.09 1.84-4.07 5.11-6.4 9.89-7.1l.86-.13V5.63M14 3v6C6.22 10.13 3.11 15.33 2 21c2.78-3.97 6.44-6 12-6v6l8-9-8-9z"/></svg>
-                <span>共有</span>
-              </button>
-
-              <button class="action-btn">
-                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M18 4v15.06l-5.42-3.87-.58-.42-.58.42L6 19.06V4h12m2-2H4v20l8-5.71L20 22V2z"/></svg>
-                <span>保存</span>
-              </button>
+              <button class="action-btn"><span>共有</span></button>
+              <button class="action-btn"><span>保存</span></button>
             </div>
           </div>
 
@@ -138,14 +125,16 @@
           </div>
         </div>
 
+        <!-- 【右側】関連動画 -->
         <aside class="watch-sidebar-column">
           <div class="related-header-title">次の動画</div>
           <div id="related-videos-list" class="related-wrapper"></div>
         </aside>
+
       </div>
     </div>
 
-    <!-- 3. ショート動画 (Shorts) ビュー（完全無限スワイプ） -->
+    <!-- 3. ショート動画 (Shorts) ビュー -->
     <div id="view-shorts" class="view" style="display:none;">
       <div class="shorts-container" id="shorts-touch-area">
         <div class="shorts-reel">
@@ -163,16 +152,16 @@
             </div>
           </div>
 
+          <!-- 右側アクションボタン列 -->
           <div class="shorts-actions">
             <!-- ↑ 前のショート -->
-            <div class="shorts-action-item pointer" onclick="app.prevShort()" title="前のショートへ (上スワイプ / ↑キー)">
+            <div class="shorts-action-item pointer" onclick="app.prevShort()" title="前のショート (上スワイプ / ↑キー)">
               <div class="action-circle nav-circle-prev">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z"/></svg>
               </div>
               <span>前へ</span>
             </div>
 
-            <!-- 高評価 -->
             <div class="shorts-action-item pointer" onclick="app.toggleLike('shorts')">
               <div class="action-circle" id="shorts-like-circle">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M18.77 11h-4.23l1.52-4.94C16.38 5.03 15.54 4 14.38 4c-.58 0-1.14.24-1.52.65L7 11H3v10h4l1 1h9.43c1.06 0 1.98-.72 2.19-1.77l1.37-7C21.26 12.05 20.18 11 18.77 11zM7 20H5v-8h2v8zm12.32-7.14l-1.37 7c-.07.35-.37.59-.72.59H8.59l-.6-1.41.01-7.18 5.34-5.74c.12-.13.3-.21.48-.21.36 0 .66.3.66.66l-1.64 5.33H18.77c.45 0 .8.41.74.86z"/></svg>
@@ -180,7 +169,6 @@
               <span id="shorts-likes">高評価</span>
             </div>
 
-            <!-- 低評価 -->
             <div class="shorts-action-item pointer" onclick="app.toggleDislike('shorts')">
               <div class="action-circle" id="shorts-dislike-circle">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17 4h-4l-1-1H2.57c-1.06 0-1.98.72-2.19 1.77L-.99 11.77C-1.26 12.95-.18 14 1.23 14h4.23l-1.52 4.94C3.62 19.97 4.46 21 5.62 21c.58 0 1.14-.24 1.52-.65L13 14h4V4zm-6 8l-5.34 5.74c-.12.13-.3.21-.48.21-.36 0-.66-.3-.66-.66l1.64-5.33H1.23c-.45 0-.8-.41-.74-.86l1.37-7c.07-.35.37-.59.72-.59H11.41l.6 1.41-.02 7.18zM15 12h2V6h-2v6z"/></svg>
@@ -188,7 +176,6 @@
               <span>低評価</span>
             </div>
 
-            <!-- コメント -->
             <div class="shorts-action-item pointer" onclick="app.toggleShortsComments()">
               <div class="action-circle">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
@@ -197,7 +184,7 @@
             </div>
 
             <!-- ↓ 次のショート -->
-            <div class="shorts-action-item pointer" onclick="app.nextShort()" title="次のショートへ (下スワイプ / ↓キー)">
+            <div class="shorts-action-item pointer" onclick="app.nextShort()" title="次のショート (下スワイプ / ↓キー)">
               <div class="action-circle nav-circle-next">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
               </div>
@@ -207,6 +194,7 @@
 
         </div>
 
+        <!-- スライドコメントドロワー -->
         <div id="shorts-comment-drawer" class="shorts-drawer" style="display:none;">
           <div class="drawer-header">
             <h3>コメント</h3>
