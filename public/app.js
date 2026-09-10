@@ -2,7 +2,6 @@
 // ⚙️ 設定：あなたの Cloudflare Worker URL を記述してください
 // =================================================================
 const API_BASE = "https://api-yt-nemmi.myproxy0108.workers.dev"; // ← 必要に応じて
-
 const FALLBACK_APIS = [
   "https://yewtu.be",
   "https://vid.puffyan.us",
@@ -29,7 +28,9 @@ const app = {
   isFetchingComments: false,
   isFetchingChannel: false,
 
-  // ショート動画管理
+  // =================================================================
+  // ★【完全復活】ショート動画管理 ＆ 興味判定メカニズム
+  // =================================================================
   rootShortId: null,
   shortsQueue: [],
   currentShortIndex: 0,
@@ -37,7 +38,6 @@ const app = {
   userInteractedWithCurrent: false,
   isFetchingDynamicShorts: false,
   isShortsMuted: true,
-  shortDataCache: new Map(), // 0ms遷移用の先読みキャッシュ
 
   // いいね管理
   isMainLiked: false,
@@ -154,7 +154,7 @@ const app = {
   },
 
   // =================================================================
-  // ★ ショート動画：自動再生＆消音切替＆0ms先読み
+  // ★【完全復活】ショート動画：興味判定アルゴリズム ＆ 動的リフレッシュ
   // =================================================================
   loadInitialShorts() {
     this.navigate("/?shorts=true");
@@ -200,21 +200,21 @@ const app = {
 
     this.resetShortsLikes();
 
-    const cacheKey = shortId || "root";
-    if (this.shortDataCache.has(cacheKey)) {
-      const cached = this.shortDataCache.get(cacheKey);
-      this.populateShortsQueue(cached);
-      this.renderCurrentShort();
-      return;
-    }
-
     try {
       const endpoint = shortId ? `/api/v1/shorts/${shortId}` : `/api/v1/shorts`;
       const data = await this.fetchApi(endpoint);
 
       if (data.current) {
-        this.shortDataCache.set(cacheKey, data);
-        this.populateShortsQueue(data);
+        if (!this.rootShortId) this.rootShortId = data.current.id;
+        this.shortsQueue.push(data.current);
+
+        if (data.sequence && data.sequence.length > 0) {
+          data.sequence.forEach(s => {
+            if (!this.shortsQueue.some(x => x.id === s.id)) {
+              this.shortsQueue.push(s);
+            }
+          });
+        }
         this.renderCurrentShort();
       } else {
         throw new Error("ショートデータが空です");
@@ -222,31 +222,6 @@ const app = {
     } catch (err) {
       document.getElementById("shorts-title").textContent = "ショート動画の取得に失敗しました。";
     }
-  },
-
-  populateShortsQueue(data) {
-    if (!this.rootShortId) this.rootShortId = data.current.id;
-    if (!this.shortsQueue.some(x => x.id === data.current.id)) {
-      this.shortsQueue.push(data.current);
-    }
-    if (data.sequence && data.sequence.length > 0) {
-      data.sequence.forEach(s => {
-        if (!this.shortsQueue.some(x => x.id === s.id)) {
-          this.shortsQueue.push(s);
-        }
-      });
-      this.prefetchNextShorts(data.sequence);
-    }
-  },
-
-  prefetchNextShorts(sequenceList) {
-    sequenceList.forEach(s => {
-      if (!this.shortDataCache.has(s.id)) {
-        this.fetchApi(`/api/v1/shorts/${s.id}`).then(d => {
-          if (d && d.current) this.shortDataCache.set(s.id, d);
-        }).catch(() => {});
-      }
-    });
   },
 
   renderCurrentShort() {
@@ -258,9 +233,10 @@ const app = {
     this.userInteractedWithCurrent = false;
 
     const player = document.getElementById("shorts-player");
-    const targetEmbed = item.embedUrl || `https://www.youtube-nocookie.com/embed/${item.id}?autoplay=1&mute=${this.isShortsMuted ? '1' : '0'}&controls=0&loop=1&playlist=${item.id}&playsinline=1&enablejsapi=1&rel=0`;
+    // ループ再生 ＆ 自動再生 URL
+    const targetEmbed = `https://www.youtube.com/embed/${item.id}?autoplay=1&mute=${this.isShortsMuted ? '1' : '0'}&controls=0&loop=1&playlist=${item.id}&playsinline=1&enablejsapi=1&rel=0`;
     
-    if (player && player.src !== targetEmbed) {
+    if (player.src !== targetEmbed) {
       player.src = targetEmbed;
     }
 
@@ -275,11 +251,14 @@ const app = {
     window.history.replaceState({}, "", `/?short=${item.id}`);
   },
 
+  // ★【核心メカニズム】興味判定（3.5秒以上または操作）で関連ショートを動的注入
   async nextShort() {
     const currentItem = this.shortsQueue[this.currentShortIndex];
     const watchDuration = Date.now() - this.shortStartTime;
 
-    const isInterested = watchDuration >= 3000 || this.userInteractedWithCurrent;
+    // 興味判定: 3.5秒以上視聴、または高評価・コメント等アクションあり
+    const isInterested = watchDuration >= 3500 || this.userInteractedWithCurrent;
+
     if (isInterested && currentItem && !this.isFetchingDynamicShorts) {
       this.fetchAndInjectRelatedShorts(currentItem.id);
     }
@@ -292,19 +271,15 @@ const app = {
     }
   },
 
+  // ★ 関連ショートをキューの次の位置に動的割り込み挿入
   async fetchAndInjectRelatedShorts(targetId) {
     this.isFetchingDynamicShorts = true;
     try {
-      let data = this.shortDataCache.get(targetId);
-      if (!data) {
-        data = await this.fetchApi(`/api/v1/shorts/${targetId}`);
-        if (data.current) this.shortDataCache.set(targetId, data);
-      }
+      const data = await this.fetchApi(`/api/v1/shorts/${targetId}`);
       if (data.sequence && data.sequence.length > 0) {
         const newOnes = data.sequence.filter(s => !this.shortsQueue.some(x => x.id === s.id));
         if (newOnes.length > 0) {
           this.shortsQueue.splice(this.currentShortIndex + 1, 0, ...newOnes);
-          this.prefetchNextShorts(newOnes);
         }
       }
     } catch (e) {
@@ -313,6 +288,7 @@ const app = {
     }
   },
 
+  // ★ キュー末尾到達時にルートショートから再復帰して無限ループ
   async recoverFromRootShort() {
     if (!this.rootShortId) return;
     try {
@@ -331,6 +307,7 @@ const app = {
     } catch (e) {}
   },
 
+  // ★ 前のショートに戻る（閲覧済み履歴の保持）
   prevShort() {
     if (this.currentShortIndex > 0) {
       this.currentShortIndex--;
@@ -338,6 +315,7 @@ const app = {
     }
   },
 
+  // ★ ホイール・スワイプ・キーボード双方向操作
   setupShortsSwipeEvents() {
     const area = document.getElementById("shorts-touch-area") || document.getElementById("view-shorts");
     if (!area) return;
@@ -372,7 +350,7 @@ const app = {
   },
 
   async toggleShortsComments() {
-    this.userInteractedWithCurrent = true;
+    this.userInteractedWithCurrent = true; // コメント展開＝興味あり判定
     const drawer = document.getElementById("shorts-comment-drawer");
     const list = document.getElementById("shorts-comments-list");
     const current = this.shortsQueue[this.currentShortIndex];
@@ -603,6 +581,7 @@ const app = {
     }
   },
 
+  // 3の倍数で通常動画を揃え、余りはバッファに保存
   renderFeedWithShortsShelf(videos, container) {
     if (!container) return;
     if (!videos || videos.length === 0) {
@@ -629,6 +608,7 @@ const app = {
     const firstBatch = normalVideos.slice(0, topCount);
     let html = firstBatch.map(v => this.buildVideoCardHtml(v)).join("");
 
+    // ショート棚
     if (shortVideos.length > 0) {
       html += `
         <div class="shorts-shelf-container">
@@ -657,7 +637,6 @@ const app = {
   },
 
   buildVideoCardHtml(v) {
-    // プレイリストカード
     if (v.type === "playlist") {
       const pId = v.playlistId || v.id;
       const thumb = v.thumbnail || "https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png";
@@ -727,7 +706,7 @@ const app = {
     this.commentsToken = null;
 
     const player = document.getElementById("nocookie-player");
-    if (player) player.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&playsinline=1`;
+    if (player) player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
 
     document.getElementById("watch-title").textContent = "読み込み中...";
     document.getElementById("watch-description").textContent = "";
@@ -839,7 +818,7 @@ const app = {
     container.insertAdjacentHTML("beforeend", html);
   },
 
-  // プレイリスト詳細ビュー
+  // プレイリスト詳細
   async loadPlaylistView(playlistId) {
     this.switchView("view-feed");
     this.feedToken = null;
@@ -881,7 +860,6 @@ const app = {
     const grid = document.getElementById("channel-video-grid");
     if (grid) {
       grid.innerHTML = "";
-      // ショートタブのときは縦長グリッドクラスを付与
       if (tab === "shorts") grid.classList.add("shorts-grid");
       else grid.classList.remove("shorts-grid");
     }
@@ -917,23 +895,19 @@ const app = {
   },
 
   updateChannelTabsUI(tab, sort) {
-    // タブのアクティブ切替
     const tabs = ["videos", "shorts", "playlists", "home"];
     tabs.forEach(t => {
       const el = document.getElementById(`ch-tab-${t}`);
       if (el) el.classList.toggle("active", t === tab);
     });
 
-    // 並べ替えバーの表示/非表示（動画とショートの時のみ表示）
     const sortBar = document.getElementById("channel-sort-bar");
     if (sortBar) {
       sortBar.style.display = (tab === "videos" || tab === "shorts") ? "flex" : "none";
-      // ショートタブのときは古い順を非表示
       const oldestBtn = document.getElementById("ch-sort-oldest");
       if (oldestBtn) oldestBtn.style.display = (tab === "shorts") ? "none" : "inline-block";
     }
 
-    // ソートボタンのアクティブ切替
     const sorts = ["latest", "popular", "oldest"];
     sorts.forEach(s => {
       const el = document.getElementById(`ch-sort-${s}`);
@@ -944,7 +918,7 @@ const app = {
   switchChannelTab(tabId) {
     if (this.currentChannelTab === tabId) return;
     this.currentChannelTab = tabId;
-    this.currentChannelSort = "latest"; // タブ切替時は最新にリセット
+    this.currentChannelSort = "latest";
     this.navigate(`/?channel=${encodeURIComponent(this.currentChannelTarget)}&tab=${tabId}&sort=latest`);
   },
 
@@ -961,12 +935,10 @@ const app = {
       return;
     }
 
-    // ショートタブの場合は縦長カードとして描画
     if (tab === "shorts") {
       const html = items.map(s => this.buildShortShelfCardHtml(s)).join("");
       container.insertAdjacentHTML("beforeend", html);
     } else {
-      // 再生リストまたは通常動画
       const count = this.channelToken ? Math.floor(items.length / 3) * 3 : items.length;
       const html = items.slice(0, count).map(v => this.buildVideoCardHtml(v)).join("");
       container.insertAdjacentHTML("beforeend", html);
