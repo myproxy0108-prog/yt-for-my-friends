@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YouTube</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="https://www.youtube.com/s/desktop/f5209772/img/favicon.ico">
+  <link rel="icon" href="https://www.youtube.com/s/desktop/f52e505a/img/favicon.ico">
 </head>
 <body>
   <!-- ヘッダー -->
@@ -75,7 +75,7 @@
         
         <div class="watch-main-column">
           <div class="player-outer">
-            <iframe id="nocookie-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <iframe id="nocookie-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen playsinline></iframe>
           </div>
 
           <h1 id="watch-title" class="video-headline"></h1>
@@ -140,7 +140,8 @@
         <div class="shorts-reel">
           
           <div class="shorts-player-box">
-            <iframe id="shorts-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            <!-- playsinline と allow 属性を強化し確実な自動再生を実現 -->
+            <iframe id="shorts-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen playsinline></iframe>
             
             <div class="shorts-overlay-bottom">
               <div class="shorts-channel-row">
@@ -162,6 +163,15 @@
               <span>前へ</span>
             </div>
 
+            <!-- ★ 音声 ON/OFF (ミュート切替) ボタン -->
+            <div class="shorts-action-item pointer" onclick="app.toggleShortsMute()" title="音声切替">
+              <div class="action-circle">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+              </div>
+              <span id="shorts-mute-btn">消音中</span>
+            </div>
+
+            <!-- 高評価 -->
             <div class="shorts-action-item pointer" onclick="app.toggleLike('shorts')">
               <div class="action-circle" id="shorts-like-circle">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M18.77 11h-4.23l1.52-4.94C16.38 5.03 15.54 4 14.38 4c-.58 0-1.14.24-1.52.65L7 11H3v10h4l1 1h9.43c1.06 0 1.98-.72 2.19-1.77l1.37-7C21.26 12.05 20.18 11 18.77 11zM7 20H5v-8h2v8zm12.32-7.14l-1.37 7c-.07.35-.37.59-.72.59H8.59l-.6-1.41.01-7.18 5.34-5.74c.12-.13.3-.21.48-.21.36 0 .66.3.66.66l-1.64 5.33H18.77c.45 0 .8.41.74.86z"/></svg>
@@ -169,6 +179,7 @@
               <span id="shorts-likes">高評価</span>
             </div>
 
+            <!-- 低評価 -->
             <div class="shorts-action-item pointer" onclick="app.toggleDislike('shorts')">
               <div class="action-circle" id="shorts-dislike-circle">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17 4h-4l-1-1H2.57c-1.06 0-1.98.72-2.19 1.77L-.99 11.77C-1.26 12.95-.18 14 1.23 14h4.23l-1.52 4.94C3.62 19.97 4.46 21 5.62 21c.58 0 1.14-.24 1.52-.65L13 14h4V4zm-6 8l-5.34 5.74c-.12.13-.3.21-.48.21-.36 0-.66-.3-.66-.66l1.64-5.33H1.23c-.45 0-.8-.41-.74-.86l1.37-7c.07-.35.37-.59.72-.59H11.41l.6 1.41-.02 7.18zM15 12h2V6h-2v6z"/></svg>
@@ -176,6 +187,7 @@
               <span>低評価</span>
             </div>
 
+            <!-- コメント -->
             <div class="shorts-action-item pointer" onclick="app.toggleShortsComments()">
               <div class="action-circle">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
@@ -217,9 +229,15 @@
           <p id="channel-page-desc"></p>
         </div>
       </div>
-      <div class="channel-nav-tabs">
-        <span class="tab-item active">動画</span>
+      
+      <!-- ★ チャンネル専用タブバー (動画/ショート/プレイリスト/ホーム) -->
+      <div class="channel-nav-tabs" id="channel-tab-bar">
+        <button class="tab-item active" onclick="app.switchChannelTab('videos')"> 動画</button>
+        <button class="tab-item" onclick="app.switchChannelTab('shorts')"> ショート</button>
+        <button class="tab-item" onclick="app.switchChannelTab('playlists')"> プレイリスト</button>
+        <button class="tab-item" onclick="app.switchChannelTab('home')"> ホーム</button>
       </div>
+
       <div id="channel-video-grid" class="video-grid"></div>
       <div id="channel-sentinel" class="scroll-sentinel">
         <div class="sentinel-spinner"></div>
