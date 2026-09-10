@@ -1,7 +1,7 @@
 // =================================================================
 // ⚙️ 設定：あなたの Cloudflare Worker URL を記述してください
 // =================================================================
-const API_BASE = "https://api-yt-ne.myproxy0108.workers.dev"; // ← 必要に応じて変更
+const API_BASE = "https://api-yt-ne.myproxy0108.workers.dev"; // ← 必要に応じて
 
 const FALLBACK_APIS = [
   "https://yewtu.be",
@@ -14,7 +14,8 @@ const app = {
   currentQuery: "おすすめ",
   currentVideoId: null,
   currentChannelTarget: null,
-  currentChannelTab: "videos", // "videos", "shorts", "playlists", "home"
+  currentChannelTab: "videos",   // "videos", "shorts", "playlists", "home"
+  currentChannelSort: "latest",  // "latest", "popular", "oldest"
 
   // 無限スクロール用トークン
   feedToken: null,
@@ -79,7 +80,10 @@ const app = {
     const cleanBase = API_BASE.replace(/\/+$/, "");
     try {
       const res = await fetch(`${cleanBase}${endpointPath}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`HTTP ${res.status}: ${txt.slice(0, 100)}`);
+      }
       return await res.json();
     } catch (err) {
       console.warn(`[Worker API Fail] Trying fallback for: ${endpointPath}`);
@@ -104,14 +108,19 @@ const app = {
     const query = params.get("q");
     const channelId = params.get("channel");
     const channelTab = params.get("tab") || "videos";
+    const channelSort = params.get("sort") || "latest";
+    const playlistId = params.get("playlist");
 
     if (shortId || isShortsFeedReq) {
       this.loadShortsView(shortId);
     } else if (videoId) {
       this.loadWatchView(videoId);
+    } else if (playlistId) {
+      this.loadPlaylistView(playlistId);
     } else if (channelId) {
       this.currentChannelTab = channelTab;
-      this.loadChannelView(channelId, channelTab);
+      this.currentChannelSort = channelSort;
+      this.loadChannelView(channelId, channelTab, channelSort);
     } else if (query) {
       const input = document.getElementById("search-input");
       if (input) input.value = query;
@@ -145,7 +154,7 @@ const app = {
   },
 
   // =================================================================
-  // ★ ショート動画：自動再生＆超高速先読み
+  // ★ ショート動画：自動再生＆消音切替＆0ms先読み
   // =================================================================
   loadInitialShorts() {
     this.navigate("/?shorts=true");
@@ -154,7 +163,6 @@ const app = {
   setupShortsPlayerEvents() {
     const player = document.getElementById("shorts-player");
     if (player) {
-      // iframeロード完了時に postMessage を送って確実に自動再生
       player.addEventListener("load", () => {
         try {
           player.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
@@ -172,7 +180,7 @@ const app = {
     }
     const muteBtn = document.getElementById("shorts-mute-btn");
     if (muteBtn) {
-      muteBtn.textContent = this.isShortsMuted ? "🔇 消音中" : "🔊 音声ON";
+      muteBtn.textContent = this.isShortsMuted ? "消音中" : "音声ON";
     }
   },
 
@@ -192,7 +200,6 @@ const app = {
 
     this.resetShortsLikes();
 
-    // 先読みキャッシュにあれば即再生（0ms）
     const cacheKey = shortId || "root";
     if (this.shortDataCache.has(cacheKey)) {
       const cached = this.shortDataCache.get(cacheKey);
@@ -228,7 +235,6 @@ const app = {
           this.shortsQueue.push(s);
         }
       });
-      // 次の候補をバックグラウンド先読み
       this.prefetchNextShorts(data.sequence);
     }
   },
@@ -252,7 +258,6 @@ const app = {
     this.userInteractedWithCurrent = false;
 
     const player = document.getElementById("shorts-player");
-    // playsinline=1, enablejsapi=1, rel=0 を付加して自動再生
     const targetEmbed = item.embedUrl || `https://www.youtube-nocookie.com/embed/${item.id}?autoplay=1&mute=${this.isShortsMuted ? '1' : '0'}&controls=0&loop=1&playlist=${item.id}&playsinline=1&enablejsapi=1&rel=0`;
     
     if (player && player.src !== targetEmbed) {
@@ -395,7 +400,7 @@ const app = {
             <div style="font-size:12px;">
               <b>${this.escape(c.author)}</b> <span style="color:#aaa;">${c.publishedText}</span>
               <div style="margin-top:2px;font-size:13px;line-height:1.3;">${this.escape(c.content)}</div>
-              <div style="color:#aaa;margin-top:4px;">👍 ${c.likeCount || 0}</div>
+              <div style="color:#aaa;margin-top:4px;">👍 ${c.likeCount ? c.likeCount.toLocaleString() : 0}</div>
             </div>
           </div>
         `).join("");
@@ -580,7 +585,7 @@ const app = {
       const data = await this.fetchApi(endpoint);
       const newVideos = Array.isArray(data) ? data : (data.results || []);
       
-      this.feedToken = data.continuation || (Array.isArray(data) ? data.continuation : null) || null;
+      this.feedToken = data.continuation || null;
 
       const allVideos = [...this.videoBuffer, ...newVideos];
       this.videoBuffer = [];
@@ -591,7 +596,7 @@ const app = {
         document.getElementById("feed-sentinel").style.display = "none";
       }
     } catch (err) {
-      if (grid) grid.insertAdjacentHTML("beforeend", `<p style="color:#ff4e4e;padding:20px;grid-column:1/-1;">検索エラー: ${err.message}</p>`);
+      if (grid) grid.insertAdjacentHTML("beforeend", `<p style="color:#ff4e4e;padding:20px;grid-column:1/-1;">読み込みエラー: ${err.message}</p>`);
       if (document.getElementById("feed-sentinel")) document.getElementById("feed-sentinel").style.display = "none";
     } finally {
       this.isFetchingFeed = false;
@@ -624,15 +629,14 @@ const app = {
     const firstBatch = normalVideos.slice(0, topCount);
     let html = firstBatch.map(v => this.buildVideoCardHtml(v)).join("");
 
-    // ショート棚
     if (shortVideos.length > 0) {
       html += `
-        <div class="shorts-shelf-container" style="grid-column: 1 / -1; margin: 15px 0;">
-          <div class="shorts-shelf-header" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div class="shorts-shelf-container">
+          <div class="shorts-shelf-header">
             <svg viewBox="0 0 24 24" width="24" height="24"><path fill="#FF0000" d="M17.77 10.32l-1.2-.5L18 8.06a3.74 3.74 0 0 0-3.5-5.26 3.8 3.8 0 0 0-2.86 1.3L6.2 10.6a3.74 3.74 0 0 0 2.33 6.13 3.6 3.6 0 0 0 1.2.19l1.2.5-1.43 1.76a3.74 3.74 0 0 0 3.5 5.26 3.8 3.8 0 0 0 2.86-1.3l5.44-6.5a3.74 3.74 0 0 0-2.33-6.13zM10 14.5v-5l4.5 2.5-4.5 2.5z"/></svg>
-            <h2 style="font-size:18px;margin:0;">ショート</h2>
+            <h2>ショート</h2>
           </div>
-          <div class="shorts-shelf-scroll-row" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;">
+          <div class="shorts-shelf-scroll-row">
             ${shortVideos.slice(0, 10).map(s => this.buildShortShelfCardHtml(s)).join("")}
           </div>
         </div>
@@ -653,6 +657,7 @@ const app = {
   },
 
   buildVideoCardHtml(v) {
+    // プレイリストカード
     if (v.type === "playlist") {
       const pId = v.playlistId || v.id;
       const thumb = v.thumbnail || "https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png";
@@ -660,7 +665,7 @@ const app = {
         <div class="video-card" onclick="app.navigate('/?playlist=${pId}')">
           <div class="thumb-wrap">
             <img src="${thumb}" loading="lazy" alt="">
-            <span class="duration-label" style="background:rgba(0,0,0,0.9);">≡ ${v.videoCount || 0} 本</span>
+            <span class="duration-label" style="background:rgba(0,0,0,0.9);">≡ ${v.videoCount || 0} 本の動画</span>
           </div>
           <div class="card-details">
             <div class="meta-right">
@@ -674,12 +679,11 @@ const app = {
 
     const isShort = v.isShort || v.type === "short";
     const vId = v.videoId || v.id;
-    const thumb = v.videoThumbnails?.[0]?.url || v.thumbnail || `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`;
+    const thumb = v.thumbnail || v.videoThumbnails?.[0]?.url || `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`;
     const duration = v.lengthSeconds ? this.formatTime(v.lengthSeconds) : (v.duration || "");
     const author = v.author || v.channel?.name || "YouTube Creator";
     const authorTarget = v.authorId || v.channel?.id || author;
 
-    // ショートの場合は直接ショートプレイヤーへ遷移
     const clickAction = isShort ? `app.navigate('/?short=${vId}')` : `app.navigate('/?v=${vId}')`;
 
     return `
@@ -704,14 +708,14 @@ const app = {
 
   buildShortShelfCardHtml(s) {
     const vId = s.videoId || s.id;
-    const thumb = s.videoThumbnails?.[0]?.url || s.thumbnail || `https://i.ytimg.com/vi/${vId}/oardefault.jpg`;
+    const thumb = s.thumbnail || s.videoThumbnails?.[0]?.url || `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`;
     return `
-      <div class="shorts-shelf-card" onclick="app.navigate('/?short=${vId}')" style="flex:0 0 140px;cursor:pointer;">
-        <div class="shorts-shelf-thumb" style="width:140px;aspect-ratio:9/16;border-radius:8px;overflow:hidden;background:#000;">
-          <img src="${thumb}" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover;">
+      <div class="shorts-shelf-card" onclick="app.navigate('/?short=${vId}')">
+        <div class="shorts-shelf-thumb">
+          <img src="${thumb}" loading="lazy" alt="">
         </div>
-        <div class="shorts-shelf-title" title="${this.escape(s.title)}" style="font-size:13px;margin-top:6px;font-weight:bold;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${this.escape(s.title)}</div>
-        <div class="shorts-shelf-views" style="font-size:11px;color:#aaa;margin-top:2px;">${s.viewCountText || (s.viewCount ? s.viewCount.toLocaleString() + ' 回視聴' : '')}</div>
+        <div class="shorts-shelf-title" title="${this.escape(s.title)}">${this.escape(s.title)}</div>
+        <div class="shorts-shelf-views">${s.viewCountText || (s.viewCount ? s.viewCount.toLocaleString() + ' 回視聴' : '')}</div>
       </div>
     `;
   },
@@ -775,7 +779,7 @@ const app = {
       return `
         <div class="related-item" onclick="${clickAction}">
           <div class="related-thumb-box">
-            <img src="${v.videoThumbnails?.[0]?.url || v.thumbnail || `https://i.ytimg.com/vi/${vId}/mqdefault.jpg`}" loading="lazy" alt="">
+            <img src="${v.thumbnail || v.videoThumbnails?.[0]?.url || `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`}" loading="lazy" alt="">
           </div>
           <div style="flex:1;min-width:0;">
             <div class="related-title" title="${this.escape(v.title)}">${this.escape(v.title)}</div>
@@ -835,30 +839,67 @@ const app = {
     container.insertAdjacentHTML("beforeend", html);
   },
 
+  // プレイリスト詳細ビュー
+  async loadPlaylistView(playlistId) {
+    this.switchView("view-feed");
+    this.feedToken = null;
+    this.videoBuffer = [];
+    const grid = document.getElementById("video-grid");
+    if (grid) grid.innerHTML = "<p style='padding:20px;grid-column:1/-1;'>プレイリストを読み込んでいます...</p>";
+
+    try {
+      const data = await this.fetchApi(`/api/v1/playlists/${encodeURIComponent(playlistId)}?limit=50`);
+      if (grid) {
+        grid.innerHTML = `
+          <div style="grid-column: 1 / -1; margin-bottom: 20px;">
+            <h1 style="font-size: 22px;">🗂 ${this.escape(data.title)}</h1>
+            <p style="color:#aaa; font-size:14px; margin-top:4px;">作成者: ${this.escape(data.author)}</p>
+          </div>
+        `;
+        const videos = data.videos || [];
+        const html = videos.map(v => this.buildVideoCardHtml(v)).join("");
+        grid.insertAdjacentHTML("beforeend", html);
+      }
+      if (document.getElementById("feed-sentinel")) {
+        document.getElementById("feed-sentinel").style.display = "none";
+      }
+    } catch (err) {
+      if (grid) grid.innerHTML = `<p style="color:#ff4e4e;padding:20px;grid-column:1/-1;">プレイリストの読み込みに失敗しました。</p>`;
+    }
+  },
+
   // =================================================================
-  // ★ チャンネル画面（ホーム・動画・ショート・プレイリスト対応）
+  // ★ チャンネル画面（動画 / ショート / 再生リスト / ホーム・並べ替え）
   // =================================================================
-  async loadChannelView(channelTarget, tab = "videos") {
+  async loadChannelView(channelTarget, tab = "videos", sort = "latest") {
     this.switchView("view-channel");
     this.currentChannelTarget = channelTarget;
     this.currentChannelTab = tab;
+    this.currentChannelSort = sort;
     this.channelToken = null;
 
     const grid = document.getElementById("channel-video-grid");
-    if (grid) grid.innerHTML = "";
+    if (grid) {
+      grid.innerHTML = "";
+      // ショートタブのときは縦長グリッドクラスを付与
+      if (tab === "shorts") grid.classList.add("shorts-grid");
+      else grid.classList.remove("shorts-grid");
+    }
+
     const sentinel = document.getElementById("channel-sentinel");
     if (sentinel) sentinel.style.display = "flex";
 
-    this.renderChannelTabsUI();
+    this.updateChannelTabsUI(tab, sort);
 
     try {
-      const endpoint = `/api/v1/channels/${encodeURIComponent(channelTarget)}?tab=${encodeURIComponent(tab)}&limit=30`;
+      const endpoint = `/api/v1/channels/${encodeURIComponent(channelTarget)}?tab=${encodeURIComponent(tab)}&sort=${encodeURIComponent(sort)}&limit=30`;
       const data = await this.fetchApi(endpoint);
 
       document.getElementById("channel-page-name").textContent = data.author || "";
       document.getElementById("channel-page-subs").textContent = data.subCount ? data.subCount.toLocaleString() + " 人の登録者" : "";
       document.getElementById("channel-page-desc").textContent = data.description || "";
       document.getElementById("channel-page-avatar").src = data.authorThumbnails?.[0]?.url || "https://www.gstatic.com/youtube/img/creator/avatar/creator_avatar_default.png";
+      
       const banner = data.authorBanners?.[0]?.url;
       const bannerEl = document.getElementById("channel-banner");
       if (bannerEl) bannerEl.style.backgroundImage = banner ? `url('${banner}')` : "none";
@@ -870,47 +911,47 @@ const app = {
 
       if (!this.channelToken && sentinel) sentinel.style.display = "none";
     } catch (err) {
+      if (grid) grid.innerHTML = `<p style="color:#ff4e4e;padding:20px;grid-column:1/-1;">チャンネルデータの取得に失敗しました: ${err.message}</p>`;
       if (sentinel) sentinel.style.display = "none";
     }
   },
 
-  renderChannelTabsUI() {
-    // チャンネルヘッダー直下にタブUIが存在しなければ動的に生成
-    let tabsContainer = document.getElementById("channel-tab-bar");
-    if (!tabsContainer) {
-      const parent = document.getElementById("view-channel");
-      const grid = document.getElementById("channel-video-grid");
-      if (parent && grid) {
-        tabsContainer = document.createElement("div");
-        tabsContainer.id = "channel-tab-bar";
-        tabsContainer.style.cssText = "display:flex;gap:10px;margin:15px 0;border-bottom:1px solid #333;padding-bottom:8px;";
-        parent.insertBefore(tabsContainer, grid);
-      }
+  updateChannelTabsUI(tab, sort) {
+    // タブのアクティブ切替
+    const tabs = ["videos", "shorts", "playlists", "home"];
+    tabs.forEach(t => {
+      const el = document.getElementById(`ch-tab-${t}`);
+      if (el) el.classList.toggle("active", t === tab);
+    });
+
+    // 並べ替えバーの表示/非表示（動画とショートの時のみ表示）
+    const sortBar = document.getElementById("channel-sort-bar");
+    if (sortBar) {
+      sortBar.style.display = (tab === "videos" || tab === "shorts") ? "flex" : "none";
+      // ショートタブのときは古い順を非表示
+      const oldestBtn = document.getElementById("ch-sort-oldest");
+      if (oldestBtn) oldestBtn.style.display = (tab === "shorts") ? "none" : "inline-block";
     }
 
-    if (tabsContainer) {
-      const tabs = [
-        { id: "videos", name: "🎬 動画" },
-        { id: "shorts", name: "📱 ショート" },
-        { id: "playlists", name: "📑 プレイリスト" },
-        { id: "home", name: "🏠 ホーム" }
-      ];
-
-      tabsContainer.innerHTML = tabs.map(t => `
-        <button 
-          class="channel-tab-btn ${this.currentChannelTab === t.id ? 'active' : ''}" 
-          style="padding:8px 16px;background:${this.currentChannelTab === t.id ? '#00e5ff' : '#222'};color:${this.currentChannelTab === t.id ? '#000' : '#fff'};border:none;border-radius:20px;cursor:pointer;font-weight:bold;font-size:13px;"
-          onclick="app.switchChannelTab('${t.id}')">
-          ${t.name}
-        </button>
-      `).join("");
-    }
+    // ソートボタンのアクティブ切替
+    const sorts = ["latest", "popular", "oldest"];
+    sorts.forEach(s => {
+      const el = document.getElementById(`ch-sort-${s}`);
+      if (el) el.classList.toggle("active", s === sort);
+    });
   },
 
   switchChannelTab(tabId) {
     if (this.currentChannelTab === tabId) return;
     this.currentChannelTab = tabId;
-    this.navigate(`/?channel=${encodeURIComponent(this.currentChannelTarget)}&tab=${tabId}`);
+    this.currentChannelSort = "latest"; // タブ切替時は最新にリセット
+    this.navigate(`/?channel=${encodeURIComponent(this.currentChannelTarget)}&tab=${tabId}&sort=latest`);
+  },
+
+  switchChannelSort(sortId) {
+    if (this.currentChannelSort === sortId) return;
+    this.currentChannelSort = sortId;
+    this.navigate(`/?channel=${encodeURIComponent(this.currentChannelTarget)}&tab=${this.currentChannelTab}&sort=${sortId}`);
   },
 
   renderChannelContent(items, container, tab) {
@@ -920,12 +961,12 @@ const app = {
       return;
     }
 
-    // ショートタブの場合は縦長ショートカードとして描画
+    // ショートタブの場合は縦長カードとして描画
     if (tab === "shorts") {
       const html = items.map(s => this.buildShortShelfCardHtml(s)).join("");
       container.insertAdjacentHTML("beforeend", html);
     } else {
-      // 動画・ホーム・プレイリストは3の倍数で揃えて描画
+      // 再生リストまたは通常動画
       const count = this.channelToken ? Math.floor(items.length / 3) * 3 : items.length;
       const html = items.slice(0, count).map(v => this.buildVideoCardHtml(v)).join("");
       container.insertAdjacentHTML("beforeend", html);
@@ -939,7 +980,7 @@ const app = {
     const sentinel = document.getElementById("channel-sentinel");
 
     try {
-      const endpoint = `/api/v1/channels/${encodeURIComponent(this.currentChannelTarget)}?tab=${encodeURIComponent(this.currentChannelTab)}&continuation=${encodeURIComponent(this.channelToken)}`;
+      const endpoint = `/api/v1/channels/${encodeURIComponent(this.currentChannelTarget)}?tab=${encodeURIComponent(this.currentChannelTab)}&sort=${encodeURIComponent(this.currentChannelSort)}&continuation=${encodeURIComponent(this.channelToken)}`;
       const data = await this.fetchApi(endpoint);
       this.channelToken = data.continuation || null;
       const items = data.contents || data.latestVideos || [];
@@ -956,7 +997,7 @@ const app = {
 
   smartChannelNav(target) {
     if (target.startsWith("UC") || target.startsWith("@")) {
-      this.navigate(`/?channel=${encodeURIComponent(target)}&tab=videos`);
+      this.navigate(`/?channel=${encodeURIComponent(target)}&tab=videos&sort=latest`);
     } else {
       this.navigate(`/?q=${encodeURIComponent(target)}`);
     }
