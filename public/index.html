@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YouTube</title>
+  <meta name="referrer" content="no-referrer">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="https://www.youtube.com/s/desktop/f52e505a/img/favicon.ico">
 </head>
@@ -140,7 +141,7 @@
         <div class="shorts-reel">
           
           <div class="shorts-player-box">
-            <!-- playsinline と allow 属性を強化し確実な自動再生を実現 -->
+            <!-- playsinline と allow 属性で確実なインライン自動再生 -->
             <iframe id="shorts-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen playsinline></iframe>
             
             <div class="shorts-overlay-bottom">
@@ -163,7 +164,7 @@
               <span>前へ</span>
             </div>
 
-            <!-- ★ 音声 ON/OFF (ミュート切替) ボタン -->
+            <!-- 音声切替 (消音 / 音声ON) -->
             <div class="shorts-action-item pointer" onclick="app.toggleShortsMute()" title="音声切替">
               <div class="action-circle">
                 <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
@@ -218,9 +219,10 @@
       </div>
     </div>
 
-    <!-- 4. チャンネル ビュー -->
+    <!-- 4. チャンネル ビュー (全タブ・並べ替え対応) -->
     <div id="view-channel" class="view" style="display:none;">
       <div id="channel-banner" class="channel-banner-img"></div>
+      
       <div class="channel-info-row">
         <img id="channel-page-avatar" class="channel-big-pic" src="" alt="">
         <div class="channel-meta-details">
@@ -230,15 +232,25 @@
         </div>
       </div>
       
-      <!-- ★ チャンネル専用タブバー (動画/ショート/プレイリスト/ホーム) -->
+      <!-- ★ チャンネル タブバー (動画 / ショート / 再生リスト / ホーム) -->
       <div class="channel-nav-tabs" id="channel-tab-bar">
-        <button class="tab-item active" onclick="app.switchChannelTab('videos')"> 動画</button>
-        <button class="tab-item" onclick="app.switchChannelTab('shorts')"> ショート</button>
-        <button class="tab-item" onclick="app.switchChannelTab('playlists')"> プレイリスト</button>
-        <button class="tab-item" onclick="app.switchChannelTab('home')"> ホーム</button>
+        <button class="tab-item active" id="ch-tab-videos" onclick="app.switchChannelTab('videos')">動画</button>
+        <button class="tab-item" id="ch-tab-shorts" onclick="app.switchChannelTab('shorts')">ショート</button>
+        <button class="tab-item" id="ch-tab-playlists" onclick="app.switchChannelTab('playlists')">再生リスト</button>
+        <button class="tab-item" id="ch-tab-home" onclick="app.switchChannelTab('home')">ホーム</button>
       </div>
 
+      <!-- ★ チャンネル 並べ替えバー (新着順 / 人気の動画 / 古い順) -->
+      <div class="channel-sort-bar" id="channel-sort-bar">
+        <button class="channel-sort-chip active" id="ch-sort-latest" onclick="app.switchChannelSort('latest')">新しい順</button>
+        <button class="channel-sort-chip" id="ch-sort-popular" onclick="app.switchChannelSort('popular')">人気の動画</button>
+        <button class="channel-sort-chip" id="ch-sort-oldest" onclick="app.switchChannelSort('oldest')">古い順</button>
+      </div>
+
+      <!-- コンテンツグリッド -->
       <div id="channel-video-grid" class="video-grid"></div>
+      
+      <!-- 無限スクロール検知スピナー -->
       <div id="channel-sentinel" class="scroll-sentinel">
         <div class="sentinel-spinner"></div>
       </div>
