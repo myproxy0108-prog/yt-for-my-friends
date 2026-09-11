@@ -1,7 +1,7 @@
 // =================================================================
 // ⚙️ 設定：あなたの Cloudflare Worker URL を記述してください
 // =================================================================
-const API_BASE = "https://api-yt-data.myproxy0108.workers.dev"; // ← 必要に応じて
+const API_BASE = "https://api-ne.myproxy0108.workers.dev"; // ← 必要に応じて
 const FALLBACK_APIS = [
   "https://yewtu.be",
   "https://vid.puffyan.us",
